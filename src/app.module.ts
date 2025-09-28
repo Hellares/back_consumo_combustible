@@ -7,6 +7,9 @@ import { ConfigModule } from '@nestjs/config';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { JwtStrategy } from './auth/jwt/jwt.strategy';
 import { RolesModule } from './roles/roles.module';
+import { ZonasModule } from './zonas/zonas.module';
+import { SedesModule } from './sedes/sedes.module';
+import { GrifosModule } from './grifos/grifos.module';
 
 @Module({
   imports: [
@@ -16,7 +19,7 @@ import { RolesModule } from './roles/roles.module';
     }),
     PrismaModule, 
     AuthModule, 
-    UsuariosModule, RolesModule,
+    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
