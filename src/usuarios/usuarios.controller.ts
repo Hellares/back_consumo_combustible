@@ -37,7 +37,7 @@ export class UsuariosController {
  
 
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
-  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
+  @HasRoles(JwtRole.ADMIN, JwtRole.TECNICO)
   @Get()
   findAll(
     @Query() paginationDto: PaginationDto

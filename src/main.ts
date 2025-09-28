@@ -7,6 +7,7 @@ import * as compression from 'compression';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { AuthService } from './auth/auth.service';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -44,6 +45,8 @@ async function bootstrap() {
 
   // Prefijo global para la API
   app.setGlobalPrefix('api');
+  // IMPORTANTE: El orden importa - el filtro debe ir ANTES que el interceptor
+  app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
 
   const config = new DocumentBuilder()

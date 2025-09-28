@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ErrorCode } from '../interceptors/response.interceptor';
+import { ErrorCode } from '../filters/http-exception.filter';
 
 export class StructuredError {
   @ApiProperty({ description: 'Mensaje de error', example: 'El usuario ya existe' })
