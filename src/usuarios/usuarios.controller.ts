@@ -10,6 +10,8 @@ import { AsignarRolDto, RevocarRolDto, RolAsignadoResponseDto } from './dto/asig
 import { HasRoles } from 'src/auth/jwt/has-roles';
 import { JwtRole } from 'src/auth/jwt/jwt-role';
 import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
+import { JwtPermissionsGuard } from 'src/auth/jwt/jwt-permissions.guard';
+import { Permissions } from 'src/common/decorators/permissions.decorator';
 
 @Controller('user')
 export class UsuariosController {
@@ -34,10 +36,30 @@ export class UsuariosController {
     return this.usuariosService.create(createUsuarioDto);
   }
 
+  @Get('admin/export')
+  @UseGuards(JwtAuthGuard, JwtPermissionsGuard)
+  @Permissions({ resource: 'usuarios', actions: ['export'] })
+  @ApiOperation({ summary: 'Exportar datos de usuarios (requiere permiso específico)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Datos de usuarios exportados exitosamente',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No tienes permisos para exportar datos de usuarios',
+  })
+  async exportUsers(@Query() paginationDto: PaginationDto) {
+    // Ejemplo: solo usuarios con rol ADMIN pueden exportar
+    return {
+      message: 'Exportación de usuarios realizada exitosamente',
+      data: await this.usuariosService.findAll(paginationDto)
+    };
+  }
+
  
 
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
-  @HasRoles(JwtRole.ADMIN, JwtRole.TECNICO)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   @Get()
   findAll(
     @Query() paginationDto: PaginationDto
