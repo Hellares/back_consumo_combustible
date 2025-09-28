@@ -1,0 +1,607 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native"]
+  // output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Zona {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @db.VarChar(100)
+  codigo      String?  @unique @db.VarChar(10)
+  descripcion String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  sedes    Sede[]
+  unidades Unidad[]
+
+  @@map("zonas")
+}
+
+model Sede {
+  id        Int      @id @default(autoincrement())
+  zonaId    Int      @map("zona_id")
+  nombre    String   @db.VarChar(100)
+  codigo    String?  @unique @db.VarChar(10)
+  direccion String?
+  telefono  String?  @db.VarChar(20)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  zona   Zona    @relation(fields: [zonaId], references: [id], onDelete: Cascade)
+  grifos Grifo[]
+
+  @@map("sedes")
+}
+
+model Grifo {
+  id             Int     @id @default(autoincrement())
+  sedeId         Int     @map("sede_id")
+  nombre         String  @db.VarChar(100)
+  codigo         String? @unique @db.VarChar(10)
+  direccion      String?
+  telefono       String? @db.VarChar(20)
+  horarioApertura DateTime? @map("horario_apertura") @db.Time
+  horarioCierre   DateTime? @map("horario_cierre") @db.Time
+  activo         Boolean @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  sede            Sede             @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  abastecimientos Abastecimiento[]
+
+  @@map("grifos")
+}
+
+// ==============================
+// USUARIOS, ROLES Y LICENCIAS
+// ==============================
+
+model Rol {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @unique @db.VarChar(50)
+  descripcion String?
+  permisos    Json?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relaciones
+  usuariosRoles UsuarioRol[]
+
+  @@map("roles")
+}
+
+model Usuario {
+  id             Int      @id @default(autoincrement())
+  nombres        String   @db.VarChar(100)
+  apellidos      String   @db.VarChar(100)
+  email          String?  @unique @db.VarChar(150)
+  telefono       String?  @db.VarChar(20)
+  dni            String?  @unique @db.VarChar(15)
+  codigoEmpleado String?  @unique @map("codigo_empleado") @db.VarChar(20)
+  passwordHash   String?  @map("password_hash")
+  fechaIngreso   DateTime? @map("fecha_ingreso") @db.Date
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  roles                    UsuarioRol[]
+  licenciasConducir        LicenciaConducir[]
+  unidadesAsignadas        Unidad[]                     @relation("ConductorOperador")
+  abastecimientosConductor Abastecimiento[]             @relation("AbastecimientoConductor")
+  abastecimientosControlador Abastecimiento[]           @relation("AbastecimientoControlador")
+  abastecimientosAprobados Abastecimiento[]             @relation("AbastecimientoAprobador")
+  abastecimientosRechazados Abastecimiento[]            @relation("AbastecimientoRechazador")
+  historialEstados         HistorialEstadoUnidad[]      @relation("HistorialReportador")
+  historialEstadosAutorizador HistorialEstadoUnidad[]   @relation("HistorialAutorizador")
+  fallasDetectadas         FallaUnidad[]                @relation("FallaDetectada")
+  fallasVerificadas        FallaUnidad[]                @relation("FallaVerificada")
+  fallasReparadas          FallaUnidad[]                @relation("FallaReparada")
+  fallasCerradas           FallaUnidad[]                @relation("FallaCerrada")
+  inspeccionesRealizadas   InspeccionUnidad[]           @relation("InspeccionInspector")
+  inspeccionesConductorEntrante InspeccionUnidad[]      @relation("InspeccionConductorEntrante")
+  inspeccionesConductorSaliente InspeccionUnidad[]      @relation("InspeccionConductorSaliente")
+  mantenimientosRealizados MantenimientoUnidad[]        @relation("MantenimientoRealizado")
+  historialConductores     UnidadConductorHistorial[]   @relation("HistorialConductor")
+  historialAsignaciones    UnidadConductorHistorial[]   @relation("HistorialAsignador")
+  asignacionesRutas        UnidadRuta[]
+  rolesAsignados           UsuarioRol[]                 @relation("RolAsignador")
+  alertasConductor     Alerta[] @relation("AlertaConductor")
+  alertasResueltas     Alerta[] @relation("AlertaResueltoPor")
+
+
+  @@map("usuarios")
+}
+
+model UsuarioRol {
+  id               Int       @id @default(autoincrement())
+  usuarioId        Int       @map("usuario_id")
+  rolId            Int       @map("rol_id")
+  fechaAsignacion  DateTime  @default(now()) @map("fecha_asignacion") @db.Date
+  fechaRevocacion  DateTime? @map("fecha_revocacion") @db.Date
+  activo           Boolean   @default(true)
+  asignadoPorId    Int?      @map("asignado_por")
+
+  // Relaciones
+  usuario     Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol         Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  asignadoPor Usuario? @relation("RolAsignador", fields: [asignadoPorId], references: [id])
+
+  @@unique([usuarioId, rolId, activo])
+  @@map("usuarios_roles")
+}
+
+model LicenciaConducir {
+  id               Int      @id @default(autoincrement())
+  usuarioId        Int      @map("usuario_id")
+  numeroLicencia   String   @unique @map("numero_licencia") @db.VarChar(50)
+  categoria        String   @db.VarChar(20)
+  fechaEmision     DateTime @map("fecha_emision") @db.Date
+  fechaExpiracion  DateTime @map("fecha_expiracion") @db.Date
+  entidadEmisora   String?  @map("entidad_emisora") @db.VarChar(100)
+  activo           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("licencias_conducir")
+}
+
+// ==============================
+// UNIDADES DE TRANSPORTE
+// ==============================
+
+model Unidad {
+  id                   Int       @id @default(autoincrement())
+  placa                String    @unique @db.VarChar(20)
+  conductorOperadorId  Int?      @map("conductor_operador_id")
+  operacion            String?   @db.VarChar(100)
+  marca                String    @db.VarChar(50)
+  modelo               String    @db.VarChar(50)
+  anio                 Int?
+  nroVin               String?   @unique @map("nro_vin") @db.VarChar(50)
+  nroMotor             String?   @unique @map("nro_motor") @db.VarChar(50)
+  zonaOperacionId      Int?      @map("zona_operacion_id")
+  capacidadTanque      Decimal?  @map("capacidad_tanque") @db.Decimal(8, 2)
+  tipoCombustible      String    @default("DIESEL") @map("tipo_combustible") @db.VarChar(30)
+  odometroInicial      Decimal   @default(0) @map("odometro_inicial") @db.Decimal(10, 2)
+  horometroInicial     Decimal   @default(0) @map("horometro_inicial") @db.Decimal(10, 2)
+  fechaAdquisicion     DateTime? @map("fecha_adquisicion") @db.Date
+  estado               String    @default("OPERATIVO") @db.VarChar(30)
+  activo               Boolean   @default(true)
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  conductorOperador     Usuario?                   @relation("ConductorOperador", fields: [conductorOperadorId], references: [id])
+  zonaOperacion         Zona?                      @relation(fields: [zonaOperacionId], references: [id])
+  abastecimientos       Abastecimiento[]
+  historialEstados      HistorialEstadoUnidad[]
+  fallas                FallaUnidad[]
+  inspecciones          InspeccionUnidad[]
+  mantenimientos        MantenimientoUnidad[]
+  historialConductores  UnidadConductorHistorial[]
+  rutasAsignadas        UnidadRuta[]
+  alertas               Alerta[]
+
+  @@map("unidades")
+}
+
+// ==============================
+// CONTROL DE ESTADO DE UNIDADES
+// ==============================
+
+model EstadoUnidad {
+  id                   Int     @id @default(autoincrement())
+  nombre               String  @unique @db.VarChar(30)
+  descripcion          String?
+  color                String? @db.VarChar(7)
+  requiereInspeccion   Boolean @default(false) @map("requiere_inspeccion")
+  permiteOperacion     Boolean @default(true) @map("permite_operacion")
+  activo               Boolean @default(true)
+
+  // Relaciones
+  historialEstadosAnteriores HistorialEstadoUnidad[] @relation("EstadoAnterior")
+  historialEstadosNuevos     HistorialEstadoUnidad[] @relation("EstadoNuevo")
+
+  @@map("estados_unidad")
+}
+
+model HistorialEstadoUnidad {
+  id                 Int       @id @default(autoincrement())
+  unidadId           Int       @map("unidad_id")
+  estadoAnteriorId   Int?      @map("estado_anterior_id")
+  estadoNuevoId      Int       @map("estado_nuevo_id")
+  fechaCambio        DateTime  @default(now()) @map("fecha_cambio")
+  kilometrajeMomento Decimal?  @map("kilometraje_momento") @db.Decimal(10, 2)
+  horometroMomento   Decimal?  @map("horometro_momento") @db.Decimal(10, 2)
+  motivoCambio       String    @map("motivo_cambio")
+  observaciones      String?
+  reportadoPorId     Int       @map("reportado_por")
+  autorizadoPorId    Int?      @map("autorizado_por")
+  ubicacion          String?   @db.VarChar(200)
+  costoEstimado      Decimal?  @map("costo_estimado") @db.Decimal(12, 2)
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  // Relaciones
+  unidad         Unidad       @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  estadoAnterior EstadoUnidad? @relation("EstadoAnterior", fields: [estadoAnteriorId], references: [id])
+  estadoNuevo    EstadoUnidad @relation("EstadoNuevo", fields: [estadoNuevoId], references: [id])
+  reportadoPor   Usuario      @relation("HistorialReportador", fields: [reportadoPorId], references: [id])
+  autorizadoPor  Usuario?     @relation("HistorialAutorizador", fields: [autorizadoPorId], references: [id])
+
+  @@map("historial_estados_unidad")
+}
+
+model TipoFalla {
+  id               Int     @id @default(autoincrement())
+  nombre           String  @unique @db.VarChar(50)
+  descripcion      String?
+  prioridadDefault String  @default("MEDIA") @map("prioridad_default") @db.VarChar(20)
+  categoria        String? @db.VarChar(30)
+  activo           Boolean @default(true)
+
+  // Relaciones
+  fallas FallaUnidad[]
+
+  @@map("tipos_falla")
+}
+
+model FallaUnidad {
+  id                     Int       @id @default(autoincrement())
+  unidadId               Int       @map("unidad_id")
+  tipoFallaId            Int       @map("tipo_falla_id")
+  fechaDeteccion         DateTime  @default(now()) @map("fecha_deteccion")
+  kilometrajeDeteccion   Decimal?  @map("kilometraje_deteccion") @db.Decimal(10, 2)
+  horometroDeteccion     Decimal?  @map("horometro_deteccion") @db.Decimal(10, 2)
+  titulo                 String    @db.VarChar(200)
+  descripcionDetallada   String    @map("descripcion_detallada")
+  sintomas               String?
+  causaProbable          String?   @map("causa_probable")
+  prioridad              String    @default("MEDIA") @db.VarChar(20)
+  impactoOperacion       String    @default("NINGUNO") @map("impacto_operacion") @db.VarChar(30)
+  detectadoPorId         Int       @map("detectado_por")
+  verificadoPorId        Int?      @map("verificado_por")
+  fechaVerificacion      DateTime? @map("fecha_verificacion")
+  estadoFalla            String    @default("REPORTADA") @map("estado_falla") @db.VarChar(30)
+  solucionAplicada       String?   @map("solucion_aplicada")
+  repuestosUtilizados    String?   @map("repuestos_utilizados")
+  costoReparacion        Decimal?  @map("costo_reparacion") @db.Decimal(12, 2)
+  fechaReparacion        DateTime? @map("fecha_reparacion")
+  reparadoPorId          Int?      @map("reparado_por")
+  tiempoParadaHoras      Decimal?  @map("tiempo_parada_horas") @db.Decimal(8, 2)
+  requiereSeguimiento    Boolean   @default(false) @map("requiere_seguimiento")
+  fechaProximoControl    DateTime? @map("fecha_proximo_control") @db.Date
+  fotosUrls              String[]  @map("fotos_urls")
+  documentosUrls         String[]  @map("documentos_urls")
+  observacionesCierre    String?   @map("observaciones_cierre")
+  cerradoPorId           Int?      @map("cerrado_por")
+  fechaCierre            DateTime? @map("fecha_cierre")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  unidad        Unidad    @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  tipoFalla     TipoFalla @relation(fields: [tipoFallaId], references: [id])
+  detectadoPor  Usuario   @relation("FallaDetectada", fields: [detectadoPorId], references: [id])
+  verificadoPor Usuario?  @relation("FallaVerificada", fields: [verificadoPorId], references: [id])
+  reparadoPor   Usuario?  @relation("FallaReparada", fields: [reparadoPorId], references: [id])
+  cerradoPor    Usuario?  @relation("FallaCerrada", fields: [cerradoPorId], references: [id])
+  alertas       Alerta[]
+
+  @@map("fallas_unidad")
+}
+
+model InspeccionUnidad {
+  id                      Int       @id @default(autoincrement())
+  unidadId                Int       @map("unidad_id")
+  tipoInspeccion          String    @map("tipo_inspeccion") @db.VarChar(30)
+  fechaInspeccion         DateTime  @default(now()) @map("fecha_inspeccion")
+  kilometraje             Decimal?  @db.Decimal(10, 2)
+  horometro               Decimal?  @db.Decimal(10, 2)
+  inspectorId             Int       @map("inspector_id")
+  conductorEntranteId     Int?      @map("conductor_entrante_id")
+  conductorSalienteId     Int?      @map("conductor_saliente_id")
+  nivelCombustible        String?   @map("nivel_combustible") @db.VarChar(20)
+  nivelAceite             String?   @map("nivel_aceite") @db.VarChar(20)
+  estadoNeumaticos        String?   @map("estado_neumaticos") @db.VarChar(30)
+  estadoFrenos            String?   @map("estado_frenos") @db.VarChar(30)
+  lucesFuncionamiento     String?   @map("luces_funcionamiento") @db.VarChar(30)
+  limpiezaGeneral         String?   @map("limpieza_general") @db.VarChar(20)
+  documentosVehiculo      String?   @map("documentos_vehiculo") @db.VarChar(20)
+  extintorEstado          String?   @map("extintor_estado") @db.VarChar(20)
+  botiquinEstado          String?   @map("botiquin_estado") @db.VarChar(20)
+  triangulosSeguridad     String?   @map("triangulos_seguridad") @db.VarChar(20)
+  chalecoReflectivo       String?   @map("chaleco_reflectivo") @db.VarChar(20)
+  observacionesGenerales  String?   @map("observaciones_generales")
+  anomaliasDetectadas     String?   @map("anomalias_detectadas")
+  recomendaciones         String?
+  resultado               String    @default("APROBADA") @db.VarChar(20)
+  motivoRechazo           String?   @map("motivo_rechazo")
+  requiereAtencionInmediata Boolean @default(false) @map("requiere_atencion_inmediata")
+  fotosInspeccionUrls     String[]  @map("fotos_inspeccion_urls")
+  firmaInspector          String?   @map("firma_inspector")
+  firmaConductor          String?   @map("firma_conductor")
+  createdAt               DateTime  @default(now()) @map("created_at")
+
+  // Relaciones
+  unidad             Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  inspector          Usuario  @relation("InspeccionInspector", fields: [inspectorId], references: [id])
+  conductorEntrante  Usuario? @relation("InspeccionConductorEntrante", fields: [conductorEntranteId], references: [id])
+  conductorSaliente  Usuario? @relation("InspeccionConductorSaliente", fields: [conductorSalienteId], references: [id])
+  historialConductores UnidadConductorHistorial[]
+
+  @@map("inspecciones_unidad")
+}
+
+model MantenimientoUnidad {
+  id                    Int       @id @default(autoincrement())
+  unidadId              Int       @map("unidad_id")
+  tipoMantenimiento     String    @map("tipo_mantenimiento") @db.VarChar(30)
+  categoria             String?   @db.VarChar(50)
+  fechaProgramada       DateTime? @map("fecha_programada") @db.Date
+  kilometrajeProgramado Decimal?  @map("kilometraje_programado") @db.Decimal(10, 2)
+  horometroProgramado   Decimal?  @map("horometro_programado") @db.Decimal(10, 2)
+  fechaRealizada        DateTime? @map("fecha_realizada")
+  kilometrajeRealizado  Decimal?  @map("kilometraje_realizado") @db.Decimal(10, 2)
+  horometroRealizado    Decimal?  @map("horometro_realizado") @db.Decimal(10, 2)
+  descripcionTrabajo    String    @map("descripcion_trabajo")
+  repuestosUtilizados   String?   @map("repuestos_utilizados")
+  costoTotal            Decimal?  @map("costo_total") @db.Decimal(12, 2)
+  proveedorServicio     String?   @map("proveedor_servicio") @db.VarChar(200)
+  numeroFactura         String?   @map("numero_factura") @db.VarChar(50)
+  realizadoPorId        Int?      @map("realizado_por")
+  tallerExterno         String?   @map("taller_externo") @db.VarChar(200)
+  estado                String    @default("PROGRAMADO") @db.VarChar(20)
+  observaciones         String?
+  proximoKm             Decimal?  @map("proximo_km") @db.Decimal(10, 2)
+  proximoHoras          Decimal?  @map("proximo_horas") @db.Decimal(10, 2)
+  proximaFecha          DateTime? @map("proxima_fecha") @db.Date
+  documentosUrls        String[]  @map("documentos_urls")
+  fotosUrls             String[]  @map("fotos_urls")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  unidad       Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  realizadoPor Usuario? @relation("MantenimientoRealizado", fields: [realizadoPorId], references: [id])
+  alertas      Alerta[]
+
+  @@map("mantenimientos_unidad")
+}
+
+// ==============================
+// HISTORIAL DE CONDUCTORES
+// ==============================
+
+model UnidadConductorHistorial {
+  id                 Int       @id @default(autoincrement())
+  unidadId           Int       @map("unidad_id")
+  conductorId        Int       @map("conductor_id")
+  fechaAsignacion    DateTime  @default(now()) @map("fecha_asignacion") @db.Date
+  fechaDesasignacion DateTime? @map("fecha_desasignacion") @db.Date
+  motivoCambio       String?   @map("motivo_cambio")
+  asignadoPorId      Int?      @map("asignado_por")
+  inspeccionId       Int?      @map("inspeccion_id")
+  activo             Boolean   @default(true)
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  // Relaciones
+  unidad      Unidad            @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  conductor   Usuario           @relation("HistorialConductor", fields: [conductorId], references: [id])
+  asignadoPor Usuario?          @relation("HistorialAsignador", fields: [asignadoPorId], references: [id])
+  inspeccion  InspeccionUnidad? @relation(fields: [inspeccionId], references: [id])
+
+  @@map("unidades_conductores_historial")
+}
+
+// ==============================
+// RUTAS
+// ==============================
+
+model Ruta {
+  id                    Int      @id @default(autoincrement())
+  nombre                String   @db.VarChar(100)
+  codigo                String?  @unique @db.VarChar(20)
+  descripcion           String?
+  origen                String?  @db.VarChar(200)
+  destino               String?  @db.VarChar(200)
+  distanciaKm           Decimal? @map("distancia_km") @db.Decimal(8, 2)
+  tiempoEstimadoMinutos Int?     @map("tiempo_estimado_minutos")
+  activo                Boolean  @default(true)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  unidadesAsignadas UnidadRuta[]
+  abastecimientos   Abastecimiento[]
+
+  @@map("rutas")
+}
+
+model UnidadRuta {
+  id                 Int       @id @default(autoincrement())
+  unidadId           Int       @map("unidad_id")
+  rutaId             Int       @map("ruta_id")
+  fechaAsignacion    DateTime  @default(now()) @map("fecha_asignacion") @db.Date
+  fechaDesasignacion DateTime? @map("fecha_desasignacion") @db.Date
+  activo             Boolean   @default(true)
+  asignadoPorId      Int?      @map("asignado_por")
+
+  // Relaciones
+  unidad      Unidad  @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  ruta        Ruta    @relation(fields: [rutaId], references: [id], onDelete: Cascade)
+  asignadoPor Usuario? @relation(fields: [asignadoPorId], references: [id])
+
+  @@map("unidades_rutas")
+}
+
+// ==============================
+// ESTADOS Y TURNOS
+// ==============================
+
+model Turno {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @unique @db.VarChar(30)
+  horaInicio  DateTime @map("hora_inicio") @db.Time
+  horaFin     DateTime @map("hora_fin") @db.Time
+  activo      Boolean  @default(true)
+
+  // Relaciones
+  abastecimientos Abastecimiento[]
+
+  @@map("turnos")
+}
+
+model EstadoAbastecimiento {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique @db.VarChar(30)
+  descripcion String?
+  color       String? @db.VarChar(7)
+  activo      Boolean @default(true)
+
+  // Relaciones
+  abastecimientos Abastecimiento[]
+
+  @@map("estados_abastecimiento")
+}
+
+// ==============================
+// REGISTRO DE ABASTECIMIENTOS
+// ==============================
+
+model Abastecimiento {
+  id                        Int       @id @default(autoincrement())
+  numeroAbastecimiento      String    @unique @map("numero_abastecimiento") @db.VarChar(50)
+  fecha                     DateTime  @default(now()) @db.Date
+  hora                      DateTime  @default(now()) @db.Time
+  turnoId                   Int?      @map("turno_id")
+  unidadId                  Int       @map("unidad_id")
+  conductorId               Int       @map("conductor_id")
+  controladorId             Int?      @map("controlador_id")
+  grifoId                   Int       @map("grifo_id")
+  rutaId                    Int?      @map("ruta_id")
+  kilometrajeActual         Decimal   @map("kilometraje_actual") @db.Decimal(10, 2)
+  kilometrajeAnterior       Decimal?  @map("kilometraje_anterior") @db.Decimal(10, 2)
+  horometroActual           Decimal?  @map("horometro_actual") @db.Decimal(10, 2)
+  horometroAnterior         Decimal?  @map("horometro_anterior") @db.Decimal(10, 2)
+  precintoAnterior          String?   @map("precinto_anterior") @db.VarChar(50)
+  precintoNuevo             String    @map("precinto_nuevo") @db.VarChar(50)
+  precinto2                 String?   @map("precinto_2") @db.VarChar(50)
+  tipoCombustible           String    @default("DIESEL") @map("tipo_combustible") @db.VarChar(50)
+  cantidad                  Decimal   @db.Decimal(10, 3)
+  unidadMedida              String    @default("GALONES") @map("unidad_medida") @db.VarChar(10)
+  costoPorUnidad            Decimal   @map("costo_por_unidad") @db.Decimal(10, 4)
+  costoTotal                Decimal   @map("costo_total") @db.Decimal(12, 2)
+  numeroTicket              String?   @map("numero_ticket") @db.VarChar(50)
+  valeDiesel                String?   @map("vale_diesel") @db.VarChar(50)
+  numeroFactura             String?   @map("numero_factura") @db.VarChar(50)
+  importeFactura            Decimal?  @map("importe_factura") @db.Decimal(12, 2)
+  requerimiento             String?
+  numeroSalidaAlmacen       String?   @map("numero_salida_almacen") @db.VarChar(50)
+  fotoSurtidorUrl           String?   @map("foto_surtidor_url")
+  fotoTableroUrl            String?   @map("foto_tablero_url")
+  fotoPrecintoNuevoUrl      String?   @map("foto_precinto_nuevo_url")
+  fotoPrecinto2Url          String?   @map("foto_precinto_2_url")
+  fotoTicketUrl             String?   @map("foto_ticket_url")
+  estadoId                  Int       @default(1) @map("estado_id")
+  observaciones             String?
+  observacionesControlador  String?   @map("observaciones_controlador")
+  motivoRechazo             String?   @map("motivo_rechazo")
+  aprobadoPorId             Int?      @map("aprobado_por")
+  fechaAprobacion           DateTime? @map("fecha_aprobacion")
+  rechazadoPorId            Int?      @map("rechazado_por")
+  fechaRechazo              DateTime? @map("fecha_rechazo")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  turno        Turno?                @relation(fields: [turnoId], references: [id])
+  unidad       Unidad                @relation(fields: [unidadId], references: [id])
+  conductor    Usuario               @relation("AbastecimientoConductor", fields: [conductorId], references: [id])
+  controlador  Usuario?              @relation("AbastecimientoControlador", fields: [controladorId], references: [id])
+  grifo        Grifo                 @relation(fields: [grifoId], references: [id])
+  ruta         Ruta?                 @relation(fields: [rutaId], references: [id])
+  estado       EstadoAbastecimiento  @relation(fields: [estadoId], references: [id])
+  aprobadoPor  Usuario?              @relation("AbastecimientoAprobador", fields: [aprobadoPorId], references: [id])
+  rechazadoPor Usuario?              @relation("AbastecimientoRechazador", fields: [rechazadoPorId], references: [id])
+
+  @@map("abastecimientos")
+}
+
+// ==============================
+// ALERTAS Y NOTIFICACIONES
+// ==============================
+
+model TipoAlerta {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique @db.VarChar(50)
+  descripcion String?
+  categoria   String? @db.VarChar(30)
+  activo      Boolean @default(true)
+
+  // Relaciones
+  alertas Alerta[]
+
+  @@map("tipos_alerta")
+}
+
+model Alerta {
+  id                Int       @id @default(autoincrement())
+  tipoAlertaId      Int       @map("tipo_alerta_id")
+  unidadId          Int?      @map("unidad_id")
+  conductorId       Int?      @map("conductor_id")
+  fallaId           Int?      @map("falla_id")
+  mantenimientoId   Int?      @map("mantenimiento_id")
+  titulo            String    @db.VarChar(200)
+  mensaje           String
+  prioridad         String    @default("MEDIA") @db.VarChar(20)
+  estado            String    @default("PENDIENTE") @db.VarChar(20)
+  fechaAlerta       DateTime  @default(now()) @map("fecha_alerta")
+  fechaResolucion   DateTime? @map("fecha_resolucion")
+  resueltoPorId     Int?      @map("resuelto_por")
+  notasResolucion   String?   @map("notas_resolucion")
+  esRecurrente      Boolean   @default(false) @map("es_recurrente")
+  frecuenciaDias    Int?      @map("frecuencia_dias")
+  proximaAlerta     DateTime? @map("proxima_alerta") @db.Date
+
+  // Relaciones con nombres específicos
+  tipoAlerta    TipoAlerta           @relation(fields: [tipoAlertaId], references: [id])
+  unidad        Unidad?              @relation(fields: [unidadId], references: [id])
+  conductor     Usuario?             @relation("AlertaConductor", fields: [conductorId], references: [id])
+  falla         FallaUnidad?         @relation(fields: [fallaId], references: [id])
+  mantenimiento MantenimientoUnidad? @relation(fields: [mantenimientoId], references: [id])
+  resueltoPor   Usuario?             @relation("AlertaResueltoPor", fields: [resueltoPorId], references: [id])
+
+  @@map("alertas")
+}
+
+// ==============================
+// ÍNDICES ADICIONALES
+// ==============================
+
+// Los índices en Prisma se definen a nivel de modelo, algunos ya están incluidos
+// Para índices compuestos adicionales:
+
+// @@index([fecha, hora]) en Abastecimiento
+// @@index([fechaDeteccion, prioridad]) en FallaUnidad
+// @@index([fechaProgramada, estado]) en MantenimientoUnidad
