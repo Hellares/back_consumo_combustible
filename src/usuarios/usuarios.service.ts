@@ -3,7 +3,7 @@ import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { UsuarioResponseDto } from './dto/usuario-response.dto';
+import { UsuarioResponseDto, PaginatedUsuarioResponseDto } from './dto/usuario-response.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { AsignarRolDto, RevocarRolDto, RolAsignadoResponseDto } from './dto/asignar-rol.dto';
 
@@ -125,14 +125,63 @@ async create(createUsuarioDto: CreateUsuarioDto): Promise<UsuarioResponseDto> {
     }
   }
 
-  findAll(paginationDto: PaginationDto) {
-    const { limit = 50, offset = 0 } = paginationDto;
-    return this.prisma.usuario.findMany({
-      where: { activo: true },
-      skip: offset,
-      take: limit,
-    });
-  }
+  async findAll(paginationDto: PaginationDto): Promise<PaginatedUsuarioResponseDto> {
+  const { limit = 10, offset = 0 } = paginationDto;
+
+  // Normalizar valores
+  const pageSize = Math.max(1, limit);
+  const safeOffset = Math.max(0, offset);
+
+  // Calcular página actual
+  const page = Math.floor(safeOffset / pageSize) + 1;
+
+  // Total de usuarios activos
+  const total = await this.prisma.usuario.count({
+    where: { activo: true },
+  });
+
+  // Número total de páginas
+  const totalPages = Math.ceil(total / pageSize);
+
+  // Obtener los usuarios paginados
+  const data = await this.prisma.usuario.findMany({
+    where: { activo: true },
+    skip: safeOffset,
+    take: pageSize,
+    select: {
+      id: true,
+      nombres: true,
+      apellidos: true,
+      email: true,
+      telefono: true,
+      dni: true,
+      codigoEmpleado: true,
+      fechaIngreso: true,
+      activo: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  // Metadata de paginación
+  const meta = {
+    total,
+    page,
+    pageSize,
+    totalPages,
+    offset: safeOffset,
+    limit: pageSize,
+    nextOffset: page < totalPages ? safeOffset + pageSize : null,
+    prevOffset: page > 1 ? safeOffset - pageSize : null,
+    hasNext: page < totalPages,
+    hasPrevious: page > 1,
+  };
+
+  return { data, meta };
+}
 
   // Método adicional para obtener usuario con sus roles
   async findOneWithRoles(id: number) {

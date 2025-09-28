@@ -1,15 +1,30 @@
-
-
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ApiResponseDto } from '../dto/api-response.dto';
+
+interface PaginatedResponse {
+  data: any[];
+  meta: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    [key: string]: any;
+  };
+}
+
+interface StandardApiResponse {
+  success: boolean;
+  message: string;
+  data: any;
+}
 
 @Injectable()
-export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponseDto<T>> {
+export class ResponseInterceptor<T> implements NestInterceptor<T, StandardApiResponse> {
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<ApiResponseDto<T>> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<StandardApiResponse> {
     const serviceName = this.extractServiceName(context);
+    const method = this.getHttpMethod(context);
 
     return next.handle().pipe(
       map(data => {
@@ -18,28 +33,49 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponseDto
           return data;
         }
         
-        // Si no, la envuelve en la estructura estándar
+        // Detectar si es una respuesta paginada
+        if (this.isPaginatedResponse(data)) {
+          return {
+            success: true,
+            message: this.getSuccessMessage(serviceName, method),
+            data: data // Mantener la estructura { data: [...], meta: {...} }
+          };
+        }
+        
+        // Para respuestas simples (arrays, objetos, primitivos)
         return {
           success: true,
-          message: this.getSuccessMessage(serviceName, context),
-          data,
+          message: this.getSuccessMessage(serviceName, method),
+          data: data
         };
       })
     );
   }
 
+  private isPaginatedResponse(data: any): data is PaginatedResponse {
+    return data && 
+           typeof data === 'object' && 
+           'data' in data && 
+           'meta' in data && 
+           Array.isArray(data.data) &&
+           data.meta &&
+           typeof data.meta === 'object' &&
+           'total' in data.meta;
+  }
+
   private extractServiceName(context: ExecutionContext): string {
     const request = context.switchToHttp().getRequest();
     const path = request.url || request.path || '';
-    const match = path.match(/\/(\w+)/);
+    const match = path.match(/\/api\/(\w+)/);
     return match ? match[1] : 'unknown';
   }
 
-  private getSuccessMessage(serviceName: string, context: ExecutionContext): string {
+  private getHttpMethod(context: ExecutionContext): string {
     const request = context.switchToHttp().getRequest();
-    const method = request.method;
+    return request.method;
+  }
 
-    // Personalizar mensajes según el servicio y método HTTP
+  private getSuccessMessage(serviceName: string, method: string): string {
     const messages = {
       user: {
         POST: 'Usuario creado exitosamente',

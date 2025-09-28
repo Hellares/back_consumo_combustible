@@ -34,5 +34,21 @@ export class UsuarioResponseDto {
   // @ApiProperty()
   // updatedAt: Date;
 
-  
+
+}
+
+// DTO para respuesta paginada
+export class PaginatedUsuarioResponseDto {
+  @ApiProperty({ type: [UsuarioResponseDto] })
+  data: UsuarioResponseDto[];
+
+  @ApiProperty()
+  meta: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
 }
