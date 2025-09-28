@@ -156,9 +156,9 @@ export class GrifosController {
       }
     }
   })
-  async getStats() {
-    return this.grifosService.getStats();
-  }
+  // async getStats() {
+  //   return this.grifosService.getStats();
+  // }
 
   @Get('abiertos')
   @UseGuards(JwtPermissionsGuard)

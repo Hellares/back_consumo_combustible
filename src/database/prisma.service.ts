@@ -1,32 +1,3 @@
-// import { Injectable, OnModuleInit } from '@nestjs/common';
-// import { PrismaClient } from '@prisma/client';
-
-// @Injectable()
-// export class PrismaService extends PrismaClient implements OnModuleInit {
-//   constructor() {
-//     super({
-//       datasources: {
-//         db: {
-//           url: process.env.DATABASE_URL,
-//         },
-//       },
-//       log: ['query', 'info', 'warn', 'error'],
-//       errorFormat: 'pretty',
-//     });
-//   }
-
-//   async onModuleInit() {
-//     await this.$connect();
-//   }
-
-//   async onModuleDestroy() {
-//     await this.$disconnect();
-//   }
-// }
-
-// src/database/prisma.service.ts
-// src/database/prisma.service.ts
-// src/database/prisma.service.ts
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
@@ -125,33 +96,33 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   // Método para verificar si un precinto ya fue usado
-  async isPrecintoDuplicado(precinto: string, excludeId?: number): Promise<boolean> {
-    const where = {
-      OR: [
-        { precintoNuevo: precinto },
-        { precinto2: precinto },
-        { precintoAnterior: precinto },
-      ],
-    };
+  // async isPrecintoDuplicado(precinto: string, excludeId?: number): Promise<boolean> {
+  //   const where = {
+  //     OR: [
+  //       { precintoNuevo: precinto },
+  //       { precinto2: precinto },
+  //       { precintoAnterior: precinto },
+  //     ],
+  //   };
 
-    if (excludeId) {
-      where['id'] = { not: excludeId };
-    }
+  //   if (excludeId) {
+  //     where['id'] = { not: excludeId };
+  //   }
 
-    const count = await this.abastecimiento.count({ where });
-    return count > 0;
-  }
+  //   const count = await this.abastecimiento.count({ where });
+  //   return count > 0;
+  // }
 
   // Método para obtener el último kilometraje de una unidad
-  async getUltimoKilometrajeUnidad(unidadId: number): Promise<number | null> {
-    const ultimoAbastecimiento = await this.abastecimiento.findFirst({
-      where: { unidadId },
-      orderBy: { fecha: 'desc' },
-      select: { kilometrajeActual: true },
-    });
+  // async getUltimoKilometrajeUnidad(unidadId: number): Promise<number | null> {
+  //   const ultimoAbastecimiento = await this.abastecimiento.findFirst({
+  //     where: { unidadId },
+  //     orderBy: { fecha: 'desc' },
+  //     select: { kilometrajeActual: true },
+  //   });
 
-    return ultimoAbastecimiento?.kilometrajeActual?.toNumber() || null;
-  }
+  //   return ultimoAbastecimiento?.kilometrajeActual?.toNumber() || null;
+  // }
 
   // Método para obtener el estado actual de una unidad
   async getEstadoActualUnidad(unidadId: number): Promise<string> {
@@ -165,68 +136,68 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   // Método para validar coherencia de kilometraje
-  async validarKilometrajeCoherente(
-    unidadId: number,
-    kilometrajeNuevo: number,
-    excludeId?: number
-  ): Promise<{ esValido: boolean; ultimoKilometraje?: number }> {
-    const where = { unidadId };
-    if (excludeId) {
-      where['id'] = { not: excludeId };
-    }
+  // async validarKilometrajeCoherente(
+  //   unidadId: number,
+  //   kilometrajeNuevo: number,
+  //   excludeId?: number
+  // ): Promise<{ esValido: boolean; ultimoKilometraje?: number }> {
+  //   const where = { unidadId };
+  //   if (excludeId) {
+  //     where['id'] = { not: excludeId };
+  //   }
 
-    const ultimoAbastecimiento = await this.abastecimiento.findFirst({
-      where,
-      orderBy: { fecha: 'desc' },
-      select: { kilometrajeActual: true },
-    });
+  //   const ultimoAbastecimiento = await this.abastecimiento.findFirst({
+  //     where,
+  //     orderBy: { fecha: 'desc' },
+  //     select: { kilometrajeActual: true },
+  //   });
 
-    const ultimoKilometraje = ultimoAbastecimiento?.kilometrajeActual?.toNumber();
+  //   const ultimoKilometraje = ultimoAbastecimiento?.kilometrajeActual?.toNumber();
     
-    if (!ultimoKilometraje) {
-      return { esValido: true };
-    }
+  //   if (!ultimoKilometraje) {
+  //     return { esValido: true };
+  //   }
 
-    return {
-      esValido: kilometrajeNuevo >= ultimoKilometraje,
-      ultimoKilometraje,
-    };
-  }
+  //   return {
+  //     esValido: kilometrajeNuevo >= ultimoKilometraje,
+  //     ultimoKilometraje,
+  //   };
+  // }
 
   // Método para calcular consumo promedio
-  async calcularConsumoPromedio(
-    unidadId: number,
-    diasAtras: number = 30
-  ): Promise<number | null> {
-    const fechaInicio = new Date();
-    fechaInicio.setDate(fechaInicio.getDate() - diasAtras);
+  // async calcularConsumoPromedio(
+  //   unidadId: number,
+  //   diasAtras: number = 30
+  // ): Promise<number | null> {
+  //   const fechaInicio = new Date();
+  //   fechaInicio.setDate(fechaInicio.getDate() - diasAtras);
 
-    const abastecimientos = await this.abastecimiento.findMany({
-      where: {
-        unidadId,
-        fecha: { gte: fechaInicio },
-        estadoId: 2, // Solo aprobados
-        kilometrajeAnterior: { not: null },
-      },
-      orderBy: { fecha: 'asc' },
-    });
+  //   const abastecimientos = await this.abastecimiento.findMany({
+  //     where: {
+  //       unidadId,
+  //       fecha: { gte: fechaInicio },
+  //       estadoId: 2, // Solo aprobados
+  //       kilometrajeAnterior: { not: null },
+  //     },
+  //     orderBy: { fecha: 'asc' },
+  //   });
 
-    if (abastecimientos.length < 2) return null;
+  //   if (abastecimientos.length < 2) return null;
 
-    let totalCombustible = 0;
-    let totalKilometros = 0;
+  //   let totalCombustible = 0;
+  //   let totalKilometros = 0;
 
-    for (const abastecimiento of abastecimientos) {
-      totalCombustible += abastecimiento.cantidad.toNumber();
-      if (abastecimiento.kilometrajeAnterior) {
-        totalKilometros += 
-          abastecimiento.kilometrajeActual.toNumber() - 
-          abastecimiento.kilometrajeAnterior.toNumber();
-      }
-    }
+  //   for (const abastecimiento of abastecimientos) {
+  //     totalCombustible += abastecimiento.cantidad.toNumber();
+  //     if (abastecimiento.kilometrajeAnterior) {
+  //       totalKilometros += 
+  //         abastecimiento.kilometrajeActual.toNumber() - 
+  //         abastecimiento.kilometrajeAnterior.toNumber();
+  //     }
+  //   }
 
-    return totalKilometros > 0 ? totalCombustible / totalKilometros : null;
-  }
+  //   return totalKilometros > 0 ? totalCombustible / totalKilometros : null;
+  // }
 
   // Método para obtener alertas pendientes de una unidad
   async getAlertasPendientesUnidad(unidadId: number) {

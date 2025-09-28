@@ -43,7 +43,7 @@ export class TurnosService {
         include: {
           _count: {
             select: {
-              abastecimientos: true
+              // abastecimientos: true
             }
           }
         }
@@ -90,7 +90,7 @@ export class TurnosService {
       include: {
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       }
@@ -125,7 +125,7 @@ export class TurnosService {
       include: {
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       }
@@ -140,7 +140,7 @@ export class TurnosService {
       include: {
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       }
@@ -159,7 +159,7 @@ export class TurnosService {
       include: {
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       }
@@ -227,7 +227,7 @@ export class TurnosService {
         include: {
           _count: {
             select: {
-              abastecimientos: true
+              // abastecimientos: true
             }
           }
         }
@@ -258,7 +258,7 @@ export class TurnosService {
         include: {
           _count: {
             select: {
-              abastecimientos: true
+              // abastecimientos: true
             }
           }
         }
@@ -281,7 +281,7 @@ export class TurnosService {
         include: {
           _count: {
             select: {
-              abastecimientos: true
+              // abastecimientos: true
             }
           }
         }
@@ -292,11 +292,11 @@ export class TurnosService {
       }
 
       // Verificar que no tenga abastecimientos asociados
-      if (turno._count.abastecimientos > 0) {
-        throw new ConflictException(
-          `No se puede eliminar el turno porque tiene ${turno._count.abastecimientos} abastecimiento(s) asociado(s)`
-        );
-      }
+      // if (turno._count.abastecimientos > 0) {
+      //   throw new ConflictException(
+      //     `No se puede eliminar el turno porque tiene ${turno._count.abastecimientos} abastecimiento(s) asociado(s)`
+      //   );
+      // }
 
       await this.prisma.turno.delete({
         where: { id }
@@ -314,28 +314,28 @@ export class TurnosService {
   /**
    * Obtiene estadísticas básicas de turnos
    */
-  async getStats() {
-    const [total, activos, inactivos, conAbastecimientos] = await Promise.all([
-      this.prisma.turno.count(),
-      this.prisma.turno.count({ where: { activo: true } }),
-      this.prisma.turno.count({ where: { activo: false } }),
-      this.prisma.turno.count({
-        where: {
-          abastecimientos: {
-            some: {}
-          }
-        }
-      })
-    ]);
+  // async getStats() {
+  //   const [total, activos, inactivos, conAbastecimientos] = await Promise.all([
+  //     this.prisma.turno.count(),
+  //     this.prisma.turno.count({ where: { activo: true } }),
+  //     this.prisma.turno.count({ where: { activo: false } }),
+  //     this.prisma.turno.count({
+  //       where: {
+  //         // abastecimientos: {
+  //           some: {}
+  //         }
+  //       }
+  //     })
+  //   ]);
 
-    return {
-      total,
-      activos,
-      inactivos,
-      conAbastecimientos,
-      sinAbastecimientos: total - conAbastecimientos
-    };
-  }
+  //   return {
+  //     total,
+  //     activos,
+  //     inactivos,
+  //     conAbastecimientos,
+  //     sinAbastecimientos: total - conAbastecimientos
+  //   };
+  // }
 
   /**
    * Extrae la hora de un objeto Date en formato HH:mm:ss

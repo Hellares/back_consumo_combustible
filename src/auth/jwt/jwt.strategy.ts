@@ -30,10 +30,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const permissions = this.extractPermissions(payload.roles);
 
     return {
-      userId: payload.id,
-      userDni: payload.dni,
-      userName: payload.nombres,
-      userIsActive: payload.activo,
+      id: payload.id,
+      dni: payload.dni,
+      nombres: payload.nombres,
+      activo: payload.activo,
       roles: payload.roles,
       permissions
     };

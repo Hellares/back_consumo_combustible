@@ -189,6 +189,38 @@ async function main() {
     })
   ]);
 
+  // 3.1 Crear Estados de Tickets de Abastecimiento
+  console.log('🎫 Creando estados de tickets de abastecimiento...');
+  const estadosTicket = await Promise.all([
+    prisma.estadoTicketAbastecimiento.upsert({
+      where: { nombre: 'SOLICITADO' },
+      update: {},
+      create: {
+        nombre: 'SOLICITADO',
+        descripcion: 'Ticket solicitado, pendiente de aprobación',
+        color: '#FFA500'
+      }
+    }),
+    prisma.estadoTicketAbastecimiento.upsert({
+      where: { nombre: 'APROBADO' },
+      update: {},
+      create: {
+        nombre: 'APROBADO',
+        descripcion: 'Ticket aprobado, listo para abastecimiento',
+        color: '#28A745'
+      }
+    }),
+    prisma.estadoTicketAbastecimiento.upsert({
+      where: { nombre: 'RECHAZADO' },
+      update: {},
+      create: {
+        nombre: 'RECHAZADO',
+        descripcion: 'Ticket rechazado por inconsistencias',
+        color: '#DC3545'
+      }
+    })
+  ]);
+
   // 4. Crear Turnos
   console.log('🕐 Creando turnos...');
   const turnos = await Promise.all([
@@ -475,8 +507,16 @@ async function main() {
   });
 
   // Asignar rol de CONDUCTOR
-  await prisma.usuarioRol.create({
-    data: {
+  await prisma.usuarioRol.upsert({
+    where: {
+      usuarioId_rolId_activo: {
+        usuarioId: conductor1.id,
+        rolId: roles.find(r => r.nombre === 'CONDUCTOR')!.id,
+        activo: true
+      }
+    },
+    update: {},
+    create: {
       usuarioId: conductor1.id,
       rolId: roles.find(r => r.nombre === 'CONDUCTOR')!.id,
       fechaAsignacion: new Date(),
@@ -485,8 +525,10 @@ async function main() {
   });
 
   // Crear licencia de conducir para el conductor
-  await prisma.licenciaConducir.create({
-    data: {
+  await prisma.licenciaConducir.upsert({
+    where: { numeroLicencia: 'A3C123456789' },
+    update: {},
+    create: {
       usuarioId: conductor1.id,
       numeroLicencia: 'A3C123456789',
       categoria: 'A3C',
@@ -581,6 +623,7 @@ async function main() {
   console.log(`   - ${roles.length} roles`);
   console.log(`   - ${estadosUnidad.length} estados de unidad`);
   console.log(`   - ${estadosAbastecimiento.length} estados de abastecimiento`);
+  console.log(`   - ${estadosTicket.length} estados de tickets de abastecimiento`);
   console.log(`   - ${turnos.length} turnos`);
   console.log(`   - ${tiposFalla.length} tipos de falla`);
   console.log(`   - ${tiposAlerta.length} tipos de alerta`);

@@ -1,52 +1,60 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { 
-  IsNotEmpty, 
-  IsString, 
-  IsNumber, 
-  IsOptional, 
-  Min, 
+import { ApiProperty } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsDateString,
+  Matches,
+  IsDecimal,
+  Min,
   Max,
-  Length,
+  MaxLength,
   IsEnum,
-  IsDateString
+  IsPositive
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
 
-enum TipoCombustible {
+export enum TipoCombustibleTicket {
   DIESEL = 'DIESEL',
   GASOLINA_84 = 'GASOLINA_84',
   GASOLINA_90 = 'GASOLINA_90',
   GASOLINA_95 = 'GASOLINA_95',
   GASOLINA_97 = 'GASOLINA_97',
-  GLP = 'GLP',
-  GNV = 'GNV'
+  GAS_NATURAL = 'GAS_NATURAL'
 }
 
-export class CrearTicketAbastecimientoDto {
-  @ApiPropertyOptional({
-    description: 'Fecha del ticket (si no se proporciona, usa la fecha actual)',
-    example: '2024-01-15'
+export class CreateTicketAbastecimientoDto {
+  @ApiProperty({
+    description: 'Fecha del ticket (YYYY-MM-DD), por defecto la fecha actual',
+    example: '2024-01-15',
+    required: false
   })
   @IsOptional()
   @IsDateString({}, { message: 'La fecha debe tener formato YYYY-MM-DD válido' })
   fecha?: string;
 
-  @ApiPropertyOptional({
-    description: 'Hora del ticket (si no se proporciona, usa la hora actual)',
-    example: '14:30:00'
+  @ApiProperty({
+    description: 'Hora del ticket (HH:mm:ss), por defecto la hora actual',
+    example: '14:30:00',
+    required: false
   })
   @IsOptional()
   @IsString({ message: 'La hora debe ser una cadena de texto' })
-  @Transform(({ value }) => value?.trim())
+  @Matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/, {
+    message: 'La hora debe tener formato HH:mm:ss válido'
+  })
   hora?: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: 'ID del turno',
-    example: 1
+    example: 1,
+    required: false
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({}, { message: 'El ID del turno debe ser un número' })
+  @IsPositive({ message: 'El ID del turno debe ser positivo' })
   turnoId?: number;
 
   @ApiProperty({
@@ -56,6 +64,7 @@ export class CrearTicketAbastecimientoDto {
   @IsNotEmpty({ message: 'El ID de la unidad es obligatorio' })
   @Type(() => Number)
   @IsNumber({}, { message: 'El ID de la unidad debe ser un número' })
+  @IsPositive({ message: 'El ID de la unidad debe ser positivo' })
   unidadId: number;
 
   @ApiProperty({
@@ -65,87 +74,100 @@ export class CrearTicketAbastecimientoDto {
   @IsNotEmpty({ message: 'El ID del conductor es obligatorio' })
   @Type(() => Number)
   @IsNumber({}, { message: 'El ID del conductor debe ser un número' })
+  @IsPositive({ message: 'El ID del conductor debe ser positivo' })
   conductorId: number;
 
   @ApiProperty({
     description: 'ID del grifo donde se realizará el abastecimiento',
-    example: 1
+    example: 2
   })
   @IsNotEmpty({ message: 'El ID del grifo es obligatorio' })
   @Type(() => Number)
   @IsNumber({}, { message: 'El ID del grifo debe ser un número' })
+  @IsPositive({ message: 'El ID del grifo debe ser positivo' })
   grifoId: number;
 
-  @ApiPropertyOptional({
-    description: 'ID de la ruta asignada',
-    example: 2
+  @ApiProperty({
+    description: 'ID de la ruta (opcional)',
+    example: 1,
+    required: false
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({}, { message: 'El ID de la ruta debe ser un número' })
+  @IsPositive({ message: 'El ID de la ruta debe ser positivo' })
   rutaId?: number;
 
   @ApiProperty({
     description: 'Kilometraje actual de la unidad',
-    example: 15432.50,
-    minimum: 0
+    example: 125420.50,
+    type: 'number',
+    format: 'decimal'
   })
   @IsNotEmpty({ message: 'El kilometraje actual es obligatorio' })
   @Type(() => Number)
   @IsNumber({}, { message: 'El kilometraje actual debe ser un número' })
   @Min(0, { message: 'El kilometraje actual no puede ser negativo' })
+  @Max(9999999.99, { message: 'El kilometraje actual excede el máximo permitido' })
   kilometrajeActual: number;
 
-  @ApiPropertyOptional({
-    description: 'Kilometraje anterior de la unidad',
-    example: 15232.50,
-    minimum: 0
+  @ApiProperty({
+    description: 'Kilometraje anterior de la unidad (opcional)',
+    example: 125380.25,
+    type: 'number',
+    format: 'decimal',
+    required: false
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({}, { message: 'El kilometraje anterior debe ser un número' })
   @Min(0, { message: 'El kilometraje anterior no puede ser negativo' })
+  @Max(9999999.99, { message: 'El kilometraje anterior excede el máximo permitido' })
   kilometrajeAnterior?: number;
 
   @ApiProperty({
-    description: 'Número del precinto nuevo',
-    example: 'PR-001235',
+    description: 'Número del precinto nuevo que se colocará',
+    example: 'PR-2024-001234',
     maxLength: 50
   })
   @IsNotEmpty({ message: 'El precinto nuevo es obligatorio' })
   @IsString({ message: 'El precinto nuevo debe ser una cadena de texto' })
-  @Length(1, 50, { message: 'El precinto nuevo debe tener entre 1 y 50 caracteres' })
-  @Transform(({ value }) => value?.trim())
+  @MaxLength(50, { message: 'El precinto nuevo no puede exceder 50 caracteres' })
+  @Transform(({ value }) => value?.trim()?.toUpperCase())
   precintoNuevo: string;
 
   @ApiProperty({
-    description: 'Tipo de combustible',
-    enum: TipoCombustible,
-    default: TipoCombustible.DIESEL
+    description: 'Tipo de combustible solicitado',
+    enum: TipoCombustibleTicket,
+    example: TipoCombustibleTicket.DIESEL,
+    default: TipoCombustibleTicket.DIESEL
   })
-  @IsNotEmpty({ message: 'El tipo de combustible es obligatorio' })
-  @IsEnum(TipoCombustible, { message: 'Tipo de combustible inválido' })
-  tipoCombustible: TipoCombustible = TipoCombustible.DIESEL;
+  @IsOptional()
+  @IsEnum(TipoCombustibleTicket, { message: 'Tipo de combustible inválido' })
+  tipoCombustible: TipoCombustibleTicket = TipoCombustibleTicket.DIESEL;
 
   @ApiProperty({
     description: 'Cantidad de combustible solicitada',
     example: 25.500,
-    minimum: 0.001,
-    maximum: 1000
+    type: 'number',
+    format: 'decimal'
   })
   @IsNotEmpty({ message: 'La cantidad es obligatoria' })
   @Type(() => Number)
   @IsNumber({}, { message: 'La cantidad debe ser un número' })
   @Min(0.001, { message: 'La cantidad debe ser mayor a 0' })
-  @Max(1000, { message: 'La cantidad no puede ser mayor a 1000' })
+  @Max(9999.999, { message: 'La cantidad excede el máximo permitido' })
   cantidad: number;
 
-  @ApiPropertyOptional({
-    description: 'Observaciones de la solicitud',
-    example: 'Solicitud de abastecimiento para ruta Lima - Callao'
+  @ApiProperty({
+    description: 'Observaciones de la solicitud (opcional)',
+    example: 'Solicitud urgente para ruta de emergencia',
+    maxLength: 500,
+    required: false
   })
   @IsOptional()
   @IsString({ message: 'Las observaciones deben ser una cadena de texto' })
+  @MaxLength(500, { message: 'Las observaciones no pueden exceder 500 caracteres' })
   @Transform(({ value }) => value?.trim())
   observacionesSolicitud?: string;
 }

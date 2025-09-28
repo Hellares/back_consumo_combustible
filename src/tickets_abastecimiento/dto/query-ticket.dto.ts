@@ -1,64 +1,48 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type, Transform } from 'class-transformer';
-import { 
-  IsOptional, 
-  IsString, 
-  IsNumber, 
-  IsEnum, 
-  IsInt, 
-  Min, 
-  Max,
-  IsDateString,
-  IsBoolean
-} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsOptional, IsNumber, IsString, IsDateString, IsEnum, IsBoolean } from 'class-validator';
 
-enum OrderDirection {
+export enum TicketOrderBy {
+  FECHA = 'fecha',
+  NUMERO_TICKET = 'numeroTicket',
+  UNIDAD = 'unidad',
+  CONDUCTOR = 'conductor',
+  CANTIDAD = 'cantidad',
+  ESTADO = 'estado'
+}
+
+export enum OrderDirection {
   ASC = 'asc',
   DESC = 'desc'
 }
 
-enum AbastecimientoOrderBy {
-  ID = 'id',
-  FECHA = 'fecha',
-  HORA = 'hora',
-  NUMERO_ABASTECIMIENTO = 'numeroAbastecimiento',
-  CANTIDAD = 'cantidad',
-  COSTO_TOTAL = 'costoTotal',
-  KILOMETRAJE_ACTUAL = 'kilometrajeActual',
-  CREATED_AT = 'createdAt'
-}
-
-export class QueryAbastecimientoDto {
+export class QueryTicketDto {
   @ApiPropertyOptional({
     description: 'Número de página',
     example: 1,
-    minimum: 1
+    default: 1
   })
   @IsOptional()
   @Type(() => Number)
-  @IsInt({ message: 'La página debe ser un número entero' })
-  @Min(1, { message: 'La página debe ser mayor a 0' })
+  @IsNumber({}, { message: 'La página debe ser un número' })
   page: number = 1;
 
   @ApiPropertyOptional({
-    description: 'Cantidad de registros por página',
+    description: 'Cantidad de registros por página (máximo 100)',
     example: 20,
-    minimum: 1,
-    maximum: 100
+    default: 20
   })
   @IsOptional()
   @Type(() => Number)
-  @IsInt({ message: 'El límite debe ser un número entero' })
-  @Min(1, { message: 'El límite debe ser mayor a 0' })
-  @Max(100, { message: 'El límite no puede ser mayor a 100' })
+  @IsNumber({}, { message: 'El límite debe ser un número' })
   limit: number = 20;
 
   @ApiPropertyOptional({
-    description: 'Texto de búsqueda (número de abastecimiento, placa, conductor)',
-    example: 'ABC-123'
+    description: 'Texto de búsqueda (número de ticket, placa, conductor)',
+    example: 'TK-2024-001234'
   })
   @IsOptional()
-  @IsString({ message: 'El término de búsqueda debe ser una cadena de texto' })
+  @IsString({ message: 'El texto de búsqueda debe ser una cadena' })
   @Transform(({ value }) => value?.trim())
   search?: string;
 
@@ -82,21 +66,12 @@ export class QueryAbastecimientoDto {
 
   @ApiPropertyOptional({
     description: 'Filtrar por ID de grifo',
-    example: 1
+    example: 2
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({}, { message: 'El ID de grifo debe ser un número' })
   grifoId?: number;
-
-  @ApiPropertyOptional({
-    description: 'Filtrar por ID de turno',
-    example: 2
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({}, { message: 'El ID de turno debe ser un número' })
-  turnoId?: number;
 
   @ApiPropertyOptional({
     description: 'Filtrar por ID de estado',
@@ -112,7 +87,7 @@ export class QueryAbastecimientoDto {
     example: 'DIESEL'
   })
   @IsOptional()
-  @IsString({ message: 'El tipo de combustible debe ser una cadena de texto' })
+  @IsString({ message: 'El tipo de combustible debe ser una cadena' })
   tipoCombustible?: string;
 
   @ApiPropertyOptional({
@@ -132,7 +107,7 @@ export class QueryAbastecimientoDto {
   fechaFin?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar solo abastecimientos pendientes de aprobación',
+    description: 'Solo tickets pendientes de aprobación',
     example: true
   })
   @IsOptional()
@@ -141,13 +116,13 @@ export class QueryAbastecimientoDto {
   solosPendientes?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Campo por el cual ordenar los resultados',
-    enum: AbastecimientoOrderBy,
-    default: AbastecimientoOrderBy.FECHA
+    description: 'Campo por el cual ordenar',
+    enum: TicketOrderBy,
+    default: TicketOrderBy.FECHA
   })
   @IsOptional()
-  @IsEnum(AbastecimientoOrderBy, { message: 'Campo de ordenamiento inválido' })
-  orderBy: AbastecimientoOrderBy = AbastecimientoOrderBy.FECHA;
+  @IsEnum(TicketOrderBy, { message: 'Campo de ordenamiento inválido' })
+  orderBy: TicketOrderBy = TicketOrderBy.FECHA;
 
   @ApiPropertyOptional({
     description: 'Dirección del ordenamiento',

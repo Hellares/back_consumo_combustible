@@ -182,9 +182,9 @@ export class TurnosController {
       }
     }
   })
-  async getStats() {
-    return this.turnosService.getStats();
-  }
+  // async getStats() {
+  //   return this.turnosService.getStats();
+  // }
 
   @Get('nombre/:nombre')
   // @UseGuards(JwtPermissionsGuard)

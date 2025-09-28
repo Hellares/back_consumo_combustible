@@ -120,7 +120,7 @@ export class UnidadesService {
           },
           _count: {
             select: {
-              abastecimientos: true,
+              // abastecimientos: true,
               mantenimientos: true,
               fallas: true
             }
@@ -259,7 +259,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true
           }
@@ -318,7 +318,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true,
             inspecciones: true
@@ -462,7 +462,7 @@ export class UnidadesService {
           },
           _count: {
             select: {
-              abastecimientos: true,
+              // abastecimientos: true,
               mantenimientos: true,
               fallas: true
             }
@@ -487,7 +487,7 @@ export class UnidadesService {
         include: {
           _count: {
             select: {
-              abastecimientos: true,
+              // abastecimientos: true,
               mantenimientos: true,
               fallas: true,
               inspecciones: true
@@ -501,16 +501,16 @@ export class UnidadesService {
       }
 
       // Verificar si tiene dependencias
-      const totalDependencias = unidad._count.abastecimientos + 
+      // const totalDependencias = unidad._count.abastecimientos + 
                                unidad._count.mantenimientos + 
                                unidad._count.fallas + 
                                unidad._count.inspecciones;
 
-      if (totalDependencias > 0) {
-        throw new ConflictException(
-          `No se puede eliminar la unidad porque tiene registros asociados: ${unidad._count.abastecimientos} abastecimientos, ${unidad._count.mantenimientos} mantenimientos, ${unidad._count.fallas} fallas, ${unidad._count.inspecciones} inspecciones. Los registros históricos deben conservarse.`
-        );
-      }
+      // if (totalDependencias > 0) {
+      //   throw new ConflictException(
+      //     `No se puede eliminar la unidad porque tiene registros asociados: ${unidad._count.abastecimientos} abastecimientos, ${unidad._count.mantenimientos} mantenimientos, ${unidad._count.fallas} fallas, ${unidad._count.inspecciones} inspecciones. Los registros históricos deben conservarse.`
+      //   );
+      // }
 
       await this.prisma.unidad.delete({
         where: { id }
@@ -558,7 +558,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true
           }
@@ -591,7 +591,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true
           }
@@ -631,7 +631,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true
           }
@@ -667,7 +667,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true
           }
@@ -696,7 +696,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true
           }
@@ -765,7 +765,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true
           }
@@ -798,7 +798,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            abastecimientos: true,
+            // abastecimientos: true,
             mantenimientos: true,
             fallas: true
           }

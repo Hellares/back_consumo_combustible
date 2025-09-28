@@ -94,7 +94,7 @@ export class GrifosService {
           },
           _count: {
             select: {
-              abastecimientos: true
+              // abastecimientos: true
             }
           }
         }
@@ -178,7 +178,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       }
@@ -238,7 +238,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       }
@@ -348,7 +348,7 @@ export class GrifosService {
           },
           _count: {
             select: {
-              abastecimientos: true
+              // abastecimientos: true
             }
           }
         }
@@ -371,7 +371,7 @@ export class GrifosService {
         include: {
           _count: {
             select: {
-              abastecimientos: true
+              // abastecimientos: true
             }
           }
         }
@@ -382,11 +382,11 @@ export class GrifosService {
       }
 
       // Verificar si tiene dependencias
-      if (grifo._count.abastecimientos > 0) {
-        throw new ConflictException(
-          `No se puede eliminar el grifo porque tiene ${grifo._count.abastecimientos} abastecimiento(s) registrado(s). Los registros históricos deben conservarse.`
-        );
-      }
+      // if (grifo._count.abastecimientos > 0) {
+      //   throw new ConflictException(
+      //     `No se puede eliminar el grifo porque tiene ${grifo._count.abastecimientos} abastecimiento(s) registrado(s). Los registros históricos deben conservarse.`
+      //   );
+      // }
 
       await this.prisma.grifo.delete({
         where: { id }
@@ -429,7 +429,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       }
@@ -455,7 +455,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       }
@@ -488,7 +488,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       },
@@ -520,7 +520,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       },
@@ -549,7 +549,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            abastecimientos: true
+            // abastecimientos: true
           }
         }
       },
@@ -561,39 +561,39 @@ export class GrifosService {
   }
 
   // Método para obtener estadísticas de grifos
-  async getStats() {
-    const [total, activos, inactivos, conAbastecimientos, abiertos] = await Promise.all([
-      this.prisma.grifo.count(),
-      this.prisma.grifo.count({ where: { activo: true } }),
-      this.prisma.grifo.count({ where: { activo: false } }),
-      this.prisma.grifo.count({
-        where: {
-          abastecimientos: {
-            some: {}
-          }
-        }
-      }),
-      this.findAbiertos().then(grifos => grifos.length)
-    ]);
+  // async getStats() {
+  //   const [total, activos, inactivos, conAbastecimientos, abiertos] = await Promise.all([
+  //     this.prisma.grifo.count(),
+  //     this.prisma.grifo.count({ where: { activo: true } }),
+  //     this.prisma.grifo.count({ where: { activo: false } }),
+  //     this.prisma.grifo.count({
+  //       where: {
+  //         abastecimientos: {
+  //           some: {}
+  //         }
+  //       }
+  //     }),
+  //     this.findAbiertos().then(grifos => grifos.length)
+  //   ]);
 
-    const distribucePorSede = await this.prisma.grifo.groupBy({
-      by: ['sedeId'],
-      _count: {
-        id: true
-      }
-    });
+  //   const distribucePorSede = await this.prisma.grifo.groupBy({
+  //     by: ['sedeId'],
+  //     _count: {
+  //       id: true
+  //     }
+  //   });
 
-    return {
-      total,
-      activos,
-      inactivos,
-      conAbastecimientos,
-      sinAbastecimientos: total - conAbastecimientos,
-      abiertos,
-      cerrados: activos - abiertos,
-      distribucePorSede
-    };
-  }
+  //   return {
+  //     total,
+  //     activos,
+  //     inactivos,
+  //     conAbastecimientos,
+  //     sinAbastecimientos: total - conAbastecimientos,
+  //     abiertos,
+  //     cerrados: activos - abiertos,
+  //     distribucePorSede
+  //   };
+  // }
 
   // Métodos auxiliares privados
   private validateHorarios(apertura: string, cierre: string): void {

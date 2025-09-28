@@ -64,7 +64,7 @@ export class RolesController {
 
   @Get()
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
-  @HasRoles(JwtRole.ADMIN, JwtRole.SUPERVISOR)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   @ApiOperation({ summary: 'Obtener lista de roles con paginación' })
   @ApiQuery({ name: 'page', required: false, description: 'Número de página', example: 1 })
   @ApiQuery({ name: 'limit', required: false, description: 'Cantidad por página', example: 10 })

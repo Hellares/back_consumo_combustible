@@ -64,7 +64,6 @@ model Grifo {
 
   // Relaciones
   sede                  Sede                     @relation(fields: [sedeId], references: [id], onDelete: Cascade)
-  abastecimientos       Abastecimiento[]         // LEGACY - Mantener compatibilidad
   ticketsAbastecimiento TicketAbastecimiento[]   // NUEVO - Sistema de tickets
 
   @@map("grifos")
@@ -106,10 +105,6 @@ model Usuario {
   roles                    UsuarioRol[]
   licenciasConducir        LicenciaConducir[]
   unidadesAsignadas        Unidad[]                     @relation("ConductorOperador")
-  abastecimientosConductor Abastecimiento[]             @relation("AbastecimientoConductor")
-  abastecimientosControlador Abastecimiento[]           @relation("AbastecimientoControlador")
-  abastecimientosAprobados Abastecimiento[]             @relation("AbastecimientoAprobador")
-  abastecimientosRechazados Abastecimiento[]            @relation("AbastecimientoRechazador")
   historialEstados         HistorialEstadoUnidad[]      @relation("HistorialReportador")
   historialEstadosAutorizador HistorialEstadoUnidad[]   @relation("HistorialAutorizador")
   fallasDetectadas         FallaUnidad[]                @relation("FallaDetectada")
@@ -201,7 +196,6 @@ model Unidad {
   // Relaciones existentes
   conductorOperador     Usuario?                   @relation("ConductorOperador", fields: [conductorOperadorId], references: [id])
   zonaOperacion         Zona?                      @relation(fields: [zonaOperacionId], references: [id])
-  abastecimientos       Abastecimiento[]           // LEGACY - Mantener compatibilidad
   historialEstados      HistorialEstadoUnidad[]
   fallas                FallaUnidad[]
   inspecciones          InspeccionUnidad[]
@@ -443,7 +437,6 @@ model Ruta {
 
   // Relaciones existentes
   unidadesAsignadas UnidadRuta[]
-  abastecimientos   Abastecimiento[]  // LEGACY - Mantener compatibilidad
 
   // NUEVA RELACIÓN - Sistema de tickets
   ticketsAbastecimiento TicketAbastecimiento[]
@@ -479,9 +472,6 @@ model Turno {
   horaFin     DateTime @map("hora_fin") @db.Time
   activo      Boolean  @default(true)
 
-  // Relaciones existentes
-  abastecimientos Abastecimiento[]  // LEGACY - Mantener compatibilidad
-
   // NUEVA RELACIÓN - Sistema de tickets
   ticketsAbastecimiento TicketAbastecimiento[]
 
@@ -495,8 +485,7 @@ model EstadoAbastecimiento {
   color       String? @db.VarChar(7)
   activo      Boolean @default(true)
 
-  // Relaciones
-  abastecimientos Abastecimiento[]
+  // Sin relaciones adicionales
 
   @@map("estados_abastecimiento")
 }
@@ -598,68 +587,6 @@ model DetalleAbastecimiento {
   @@map("detalles_abastecimiento")
 }
 
-// ==============================
-// REGISTRO DE ABASTECIMIENTOS (LEGACY - MANTENER COMPATIBILIDAD)
-// ==============================
-
-model Abastecimiento {
-  id                        Int       @id @default(autoincrement())
-  numeroAbastecimiento      String    @unique @map("numero_abastecimiento") @db.VarChar(50)
-  fecha                     DateTime  @default(now()) @db.Date
-  hora                      DateTime  @default(now()) @db.Time
-  turnoId                   Int?      @map("turno_id")
-  unidadId                  Int       @map("unidad_id")
-  conductorId               Int       @map("conductor_id")
-  controladorId             Int?      @map("controlador_id")
-  grifoId                   Int       @map("grifo_id")
-  rutaId                    Int?      @map("ruta_id")
-  kilometrajeActual         Decimal   @map("kilometraje_actual") @db.Decimal(10, 2)
-  kilometrajeAnterior       Decimal?  @map("kilometraje_anterior") @db.Decimal(10, 2)
-  horometroActual           Decimal?  @map("horometro_actual") @db.Decimal(10, 2)
-  horometroAnterior         Decimal?  @map("horometro_anterior") @db.Decimal(10, 2)
-  precintoAnterior          String?   @map("precinto_anterior") @db.VarChar(50)
-  precintoNuevo             String    @map("precinto_nuevo") @db.VarChar(50)
-  precinto2                 String?   @map("precinto_2") @db.VarChar(50)
-  tipoCombustible           String    @default("DIESEL") @map("tipo_combustible") @db.VarChar(50)
-  cantidad                  Decimal   @db.Decimal(10, 3)
-  unidadMedida              String    @default("GALONES") @map("unidad_medida") @db.VarChar(10)
-  costoPorUnidad            Decimal   @map("costo_por_unidad") @db.Decimal(10, 4)
-  costoTotal                Decimal   @map("costo_total") @db.Decimal(12, 2)
-  numeroTicket              String?   @map("numero_ticket") @db.VarChar(50)
-  valeDiesel                String?   @map("vale_diesel") @db.VarChar(50)
-  numeroFactura             String?   @map("numero_factura") @db.VarChar(50)
-  importeFactura            Decimal?  @map("importe_factura") @db.Decimal(12, 2)
-  requerimiento             String?
-  numeroSalidaAlmacen       String?   @map("numero_salida_almacen") @db.VarChar(50)
-  fotoSurtidorUrl           String?   @map("foto_surtidor_url")
-  fotoTableroUrl            String?   @map("foto_tablero_url")
-  fotoPrecintoNuevoUrl      String?   @map("foto_precinto_nuevo_url")
-  fotoPrecinto2Url          String?   @map("foto_precinto_2_url")
-  fotoTicketUrl             String?   @map("foto_ticket_url")
-  estadoId                  Int       @default(1) @map("estado_id")
-  observaciones             String?
-  observacionesControlador  String?   @map("observaciones_controlador")
-  motivoRechazo             String?   @map("motivo_rechazo")
-  aprobadoPorId             Int?      @map("aprobado_por")
-  fechaAprobacion           DateTime? @map("fecha_aprobacion")
-  rechazadoPorId            Int?      @map("rechazado_por")
-  fechaRechazo              DateTime? @map("fecha_rechazo")
-  createdAt                 DateTime  @default(now()) @map("created_at")
-  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at")
-
-  // Relaciones
-  turno        Turno?                @relation(fields: [turnoId], references: [id])
-  unidad       Unidad                @relation(fields: [unidadId], references: [id])
-  conductor    Usuario               @relation("AbastecimientoConductor", fields: [conductorId], references: [id])
-  controlador  Usuario?              @relation("AbastecimientoControlador", fields: [controladorId], references: [id])
-  grifo        Grifo                 @relation(fields: [grifoId], references: [id])
-  ruta         Ruta?                 @relation(fields: [rutaId], references: [id])
-  estado       EstadoAbastecimiento  @relation(fields: [estadoId], references: [id])
-  aprobadoPor  Usuario?              @relation("AbastecimientoAprobador", fields: [aprobadoPorId], references: [id])
-  rechazadoPor Usuario?              @relation("AbastecimientoRechazador", fields: [rechazadoPorId], references: [id])
-
-  @@map("abastecimientos")
-}
 
 // ==============================
 // ALERTAS Y NOTIFICACIONES
