@@ -12,6 +12,7 @@ import { SedesModule } from './sedes/sedes.module';
 import { GrifosModule } from './grifos/grifos.module';
 import { LicenciasConducirModule } from './licencias_conducir/licencias_conducir.module';
 import { UnidadesModule } from './unidades/unidades.module';
+import { TurnosModule } from './turnos/turnos.module';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { UnidadesModule } from './unidades/unidades.module';
     }),
     PrismaModule, 
     AuthModule, 
-    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule,
+    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule, TurnosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
