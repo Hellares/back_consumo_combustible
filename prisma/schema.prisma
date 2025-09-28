@@ -63,8 +63,9 @@ model Grifo {
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones
-  sede            Sede             @relation(fields: [sedeId], references: [id], onDelete: Cascade)
-  abastecimientos Abastecimiento[]
+  sede                  Sede                     @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  abastecimientos       Abastecimiento[]         // LEGACY - Mantener compatibilidad
+  ticketsAbastecimiento TicketAbastecimiento[]   // NUEVO - Sistema de tickets
 
   @@map("grifos")
 }
@@ -101,7 +102,7 @@ model Usuario {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
-  // Relaciones
+  // Relaciones existentes
   roles                    UsuarioRol[]
   licenciasConducir        LicenciaConducir[]
   unidadesAsignadas        Unidad[]                     @relation("ConductorOperador")
@@ -123,9 +124,15 @@ model Usuario {
   historialAsignaciones    UnidadConductorHistorial[]   @relation("HistorialAsignador")
   asignacionesRutas        UnidadRuta[]
   rolesAsignados           UsuarioRol[]                 @relation("RolAsignador")
-  alertasConductor     Alerta[] @relation("AlertaConductor")
-  alertasResueltas     Alerta[] @relation("AlertaResueltoPor")
+  alertasConductor         Alerta[]                     @relation("AlertaConductor")
+  alertasResueltas         Alerta[]                     @relation("AlertaResueltoPor")
 
+  // NUEVAS RELACIONES - Sistema de tickets
+  ticketsSolicitados       TicketAbastecimiento[]  @relation("TicketSolicitadoPor")
+  ticketsConductor         TicketAbastecimiento[]  @relation("TicketConductor")
+  ticketsRechazados        TicketAbastecimiento[]  @relation("TicketRechazadoPor")
+  detallesControlados      DetalleAbastecimiento[] @relation("DetalleControlador")
+  detallesAprobados        DetalleAbastecimiento[] @relation("DetalleAprobadoPor")
 
   @@map("usuarios")
 }
@@ -191,10 +198,10 @@ model Unidad {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  // Relaciones
+  // Relaciones existentes
   conductorOperador     Usuario?                   @relation("ConductorOperador", fields: [conductorOperadorId], references: [id])
   zonaOperacion         Zona?                      @relation(fields: [zonaOperacionId], references: [id])
-  abastecimientos       Abastecimiento[]
+  abastecimientos       Abastecimiento[]           // LEGACY - Mantener compatibilidad
   historialEstados      HistorialEstadoUnidad[]
   fallas                FallaUnidad[]
   inspecciones          InspeccionUnidad[]
@@ -202,6 +209,9 @@ model Unidad {
   historialConductores  UnidadConductorHistorial[]
   rutasAsignadas        UnidadRuta[]
   alertas               Alerta[]
+
+  // NUEVA RELACIÓN - Sistema de tickets
+  ticketsAbastecimiento TicketAbastecimiento[]  @relation("TicketUnidad")
 
   @@map("unidades")
 }
@@ -431,9 +441,12 @@ model Ruta {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
 
-  // Relaciones
+  // Relaciones existentes
   unidadesAsignadas UnidadRuta[]
-  abastecimientos   Abastecimiento[]
+  abastecimientos   Abastecimiento[]  // LEGACY - Mantener compatibilidad
+
+  // NUEVA RELACIÓN - Sistema de tickets
+  ticketsAbastecimiento TicketAbastecimiento[]
 
   @@map("rutas")
 }
@@ -466,8 +479,11 @@ model Turno {
   horaFin     DateTime @map("hora_fin") @db.Time
   activo      Boolean  @default(true)
 
-  // Relaciones
-  abastecimientos Abastecimiento[]
+  // Relaciones existentes
+  abastecimientos Abastecimiento[]  // LEGACY - Mantener compatibilidad
+
+  // NUEVA RELACIÓN - Sistema de tickets
+  ticketsAbastecimiento TicketAbastecimiento[]
 
   @@map("turnos")
 }
@@ -486,7 +502,104 @@ model EstadoAbastecimiento {
 }
 
 // ==============================
-// REGISTRO DE ABASTECIMIENTOS
+// NUEVO SISTEMA - TICKETS Y DETALLES
+// ==============================
+
+// Estados específicos para tickets de abastecimiento
+model EstadoTicketAbastecimiento {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique @db.VarChar(30)
+  descripcion String?
+  color       String? @db.VarChar(7)
+  activo      Boolean @default(true)
+
+  // Relaciones
+  tickets TicketAbastecimiento[]
+
+  @@map("estados_ticket_abastecimiento")
+}
+
+// TABLA PRINCIPAL - TICKETS DE SOLICITUD
+model TicketAbastecimiento {
+  id                    Int      @id @default(autoincrement())
+  numeroTicket          String   @unique @map("numero_ticket") @db.VarChar(50)
+  fecha                 DateTime @default(now()) @db.Date
+  hora                  DateTime @default(now()) @db.Time
+  turnoId               Int?     @map("turno_id")
+  unidadId              Int      @map("unidad_id")
+  conductorId           Int      @map("conductor_id")
+  grifoId               Int      @map("grifo_id")
+  rutaId                Int?     @map("ruta_id")
+  kilometrajeActual     Decimal  @map("kilometraje_actual") @db.Decimal(10, 2)
+  kilometrajeAnterior   Decimal? @map("kilometraje_anterior") @db.Decimal(10, 2)
+  precintoNuevo         String   @map("precinto_nuevo") @db.VarChar(50)
+  tipoCombustible       String   @default("DIESEL") @map("tipo_combustible") @db.VarChar(30)
+  cantidad              Decimal  @db.Decimal(10, 3)
+  observacionesSolicitud String? @map("observaciones_solicitud")
+  estadoId              Int      @map("estado_id")
+  solicitadoPorId       Int      @map("solicitado_por")
+  fechaSolicitud        DateTime @default(now()) @map("fecha_solicitud")
+  motivoRechazo         String?  @map("motivo_rechazo")
+  rechazadoPorId        Int?     @map("rechazado_por")
+  fechaRechazo          DateTime? @map("fecha_rechazo")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  turno                 Turno?                      @relation(fields: [turnoId], references: [id])
+  unidad                Unidad                      @relation("TicketUnidad", fields: [unidadId], references: [id])
+  conductor             Usuario                     @relation("TicketConductor", fields: [conductorId], references: [id])
+  grifo                 Grifo                       @relation(fields: [grifoId], references: [id])
+  ruta                  Ruta?                       @relation(fields: [rutaId], references: [id])
+  estado                EstadoTicketAbastecimiento  @relation(fields: [estadoId], references: [id])
+  solicitadoPor         Usuario                     @relation("TicketSolicitadoPor", fields: [solicitadoPorId], references: [id])
+  rechazadoPor          Usuario?                    @relation("TicketRechazadoPor", fields: [rechazadoPorId], references: [id])
+  
+  // Relación 1:1 con detalle
+  detalleAbastecimiento DetalleAbastecimiento?
+
+  @@map("tickets_abastecimiento")
+}
+
+// TABLA DE DETALLE - SOLO CUANDO SE APRUEBA
+model DetalleAbastecimiento {
+  id                     Int      @id @default(autoincrement())
+  ticketId               Int      @unique @map("ticket_id")
+  horometroActual        Decimal? @map("horometro_actual") @db.Decimal(10, 2)
+  horometroAnterior      Decimal? @map("horometro_anterior") @db.Decimal(10, 2)
+  precintoAnterior       String?  @map("precinto_anterior") @db.VarChar(50)
+  precinto2              String?  @map("precinto_2") @db.VarChar(50)
+  unidadMedida           String   @default("GALONES") @map("unidad_medida") @db.VarChar(10)
+  costoPorUnidad         Decimal  @map("costo_por_unidad") @db.Decimal(10, 4)
+  costoTotal             Decimal  @map("costo_total") @db.Decimal(12, 2)
+  numeroTicketGrifo      String?  @map("numero_ticket_grifo") @db.VarChar(50)
+  valeDiesel             String?  @map("vale_diesel") @db.VarChar(50)
+  numeroFactura          String?  @map("numero_factura") @db.VarChar(50)
+  importeFactura         Decimal? @map("importe_factura") @db.Decimal(12, 2)
+  requerimiento          String?
+  numeroSalidaAlmacen    String?  @map("numero_salida_almacen") @db.VarChar(50)
+  fotoSurtidorUrl        String?  @map("foto_surtidor_url")
+  fotoTableroUrl         String?  @map("foto_tablero_url")
+  fotoPrecintoNuevoUrl   String?  @map("foto_precinto_nuevo_url")
+  fotoPrecinto2Url       String?  @map("foto_precinto_2_url")
+  fotoTicketUrl          String?  @map("foto_ticket_url")
+  observacionesControlador String? @map("observaciones_controlador")
+  controladorId          Int?     @map("controlador_id")
+  aprobadoPorId          Int      @map("aprobado_por")
+  fechaAprobacion        DateTime @default(now()) @map("fecha_aprobacion")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  ticket       TicketAbastecimiento @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  controlador  Usuario?             @relation("DetalleControlador", fields: [controladorId], references: [id])
+  aprobadoPor  Usuario              @relation("DetalleAprobadoPor", fields: [aprobadoPorId], references: [id])
+
+  @@map("detalles_abastecimiento")
+}
+
+// ==============================
+// REGISTRO DE ABASTECIMIENTOS (LEGACY - MANTENER COMPATIBILIDAD)
 // ==============================
 
 model Abastecimiento {
@@ -584,7 +697,7 @@ model Alerta {
   frecuenciaDias    Int?      @map("frecuencia_dias")
   proximaAlerta     DateTime? @map("proxima_alerta") @db.Date
 
-  // Relaciones con nombres específicos
+  // Relaciones
   tipoAlerta    TipoAlerta           @relation(fields: [tipoAlertaId], references: [id])
   unidad        Unidad?              @relation(fields: [unidadId], references: [id])
   conductor     Usuario?             @relation("AlertaConductor", fields: [conductorId], references: [id])
@@ -596,12 +709,15 @@ model Alerta {
 }
 
 // ==============================
-// ÍNDICES ADICIONALES
+// ÍNDICES PARA OPTIMIZACIÓN
 // ==============================
 
-// Los índices en Prisma se definen a nivel de modelo, algunos ya están incluidos
-// Para índices compuestos adicionales:
+// Los índices se crearán automáticamente por Prisma para:
+// - Primary keys
+// - Unique constraints  
+// - Foreign keys
 
-// @@index([fecha, hora]) en Abastecimiento
+// Para índices compuestos adicionales, se pueden agregar:
+// @@index([fecha, estado]) en TicketAbastecimiento
 // @@index([fechaDeteccion, prioridad]) en FallaUnidad
 // @@index([fechaProgramada, estado]) en MantenimientoUnidad
