@@ -129,6 +129,8 @@ model Usuario {
   detallesControlados      DetalleAbastecimiento[] @relation("DetalleControlador")
   detallesAprobados        DetalleAbastecimiento[] @relation("DetalleAprobadoPor")
 
+  archivosSubidos           ArchivoTicket[]                @relation("ArchivoSubidoPor")
+
   @@map("usuarios")
 }
 
@@ -478,17 +480,6 @@ model Turno {
   @@map("turnos")
 }
 
-model EstadoAbastecimiento {
-  id          Int     @id @default(autoincrement())
-  nombre      String  @unique @db.VarChar(30)
-  descripcion String?
-  color       String? @db.VarChar(7)
-  activo      Boolean @default(true)
-
-  // Sin relaciones adicionales
-
-  @@map("estados_abastecimiento")
-}
 
 // ==============================
 // NUEVO SISTEMA - TICKETS Y DETALLES
@@ -546,6 +537,7 @@ model TicketAbastecimiento {
   
   // Relación 1:1 con detalle
   detalleAbastecimiento DetalleAbastecimiento?
+  archivos              ArchivoTicket[]
 
   @@map("tickets_abastecimiento")
 }
@@ -567,11 +559,6 @@ model DetalleAbastecimiento {
   importeFactura         Decimal? @map("importe_factura") @db.Decimal(12, 2)
   requerimiento          String?
   numeroSalidaAlmacen    String?  @map("numero_salida_almacen") @db.VarChar(50)
-  fotoSurtidorUrl        String?  @map("foto_surtidor_url")
-  fotoTableroUrl         String?  @map("foto_tablero_url")
-  fotoPrecintoNuevoUrl   String?  @map("foto_precinto_nuevo_url")
-  fotoPrecinto2Url       String?  @map("foto_precinto_2_url")
-  fotoTicketUrl          String?  @map("foto_ticket_url")
   observacionesControlador String? @map("observaciones_controlador")
   controladorId          Int?     @map("controlador_id")
   aprobadoPorId          Int      @map("aprobado_por")
@@ -634,6 +621,56 @@ model Alerta {
 
   @@map("alertas")
 }
+
+model TipoArchivoTicket {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique @db.VarChar(30)
+  nombre      String   @db.VarChar(100)
+  descripcion String?
+  categoria   String   @db.VarChar(20) // 'IMAGEN', 'DOCUMENTO', 'COMPROBANTE'
+  requerido   Boolean  @default(false)
+  orden       Int      @default(0)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relaciones
+  archivos ArchivoTicket[]
+
+  @@map("tipos_archivo_ticket")
+}
+
+model ArchivoTicket {
+  id                Int      @id @default(autoincrement())
+  ticketId          Int      @map("ticket_id")
+  tipoArchivoId     Int      @map("tipo_archivo_id")
+  nombreArchivo     String   @map("nombre_archivo") @db.VarChar(255)
+  nombreOriginal    String   @map("nombre_original") @db.VarChar(255)
+  url               String
+  urlThumbnail      String?  @map("url_thumbnail") // Miniatura para imágenes
+  rutaAlmacenamiento String  @map("ruta_almacenamiento")
+  tipoMime          String   @map("tipo_mime") @db.VarChar(100)
+  tamanoBytes       BigInt   @map("tamano_bytes")
+  extension         String   @db.VarChar(10)
+  metadatos         Json?    // Información adicional como dimensiones, duración, etc.
+  descripcion       String?  // Descripción o comentario del archivo
+  orden             Int      @default(0) // Para ordenar múltiples fotos
+  esPrincipal       Boolean  @default(false) @map("es_principal") // Marcar foto principal
+  subidoPorId       Int      @map("subido_por")
+  fechaSubida       DateTime @default(now()) @map("fecha_subida")
+  activo            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  // Relaciones
+  ticket      TicketAbastecimiento @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tipoArchivo TipoArchivoTicket    @relation(fields: [tipoArchivoId], references: [id])
+  subidoPor   Usuario              @relation("ArchivoSubidoPor", fields: [subidoPorId], references: [id])
+
+  @@index([ticketId])
+  @@index([tipoArchivoId])
+  @@map("archivos_ticket")
+}
+
+
 
 // ==============================
 // ÍNDICES PARA OPTIMIZACIÓN
