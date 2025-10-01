@@ -313,8 +313,10 @@ export class GrifosService {
       }
 
       // Validar horarios si se están actualizando
-      const horarioApertura = updateGrifoDto.horarioApertura || this.formatTimeFromDate(existingGrifo.horarioApertura);
-      const horarioCierre = updateGrifoDto.horarioCierre || this.formatTimeFromDate(existingGrifo.horarioCierre);
+      // const horarioApertura = updateGrifoDto.horarioApertura || this.formatTimeFromDate(existingGrifo.horarioApertura);
+      // const horarioCierre = updateGrifoDto.horarioCierre || this.formatTimeFromDate(existingGrifo.horarioCierre);
+      const horarioApertura = updateGrifoDto.horarioApertura || existingGrifo.horarioApertura;
+      const horarioCierre = updateGrifoDto.horarioCierre || existingGrifo.horarioCierre;
       
       if (horarioApertura && horarioCierre) {
         this.validateHorarios(horarioApertura, horarioCierre);

@@ -7,11 +7,6 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seeding...');
 
-  // Limpiar datos existentes (opcional, comentar si no quieres borrar)
-  // await prisma.alerta.deleteMany();
-  // await prisma.abastecimiento.deleteMany();
-  // ... otros modelos
-
   // 1. Crear Roles
   console.log('👥 Creando roles...');
   const roles = await Promise.all([
@@ -148,6 +143,46 @@ async function main() {
     })
   ]);
 
+  // 3. Crear Estados de Abastecimiento
+  console.log('⛽ Creando estados de abastecimiento...');
+  const estadosAbastecimiento = await Promise.all([
+    prisma.estadoTicketAbastecimiento.upsert({
+      where: { nombre: 'PENDIENTE' },
+      update: {},
+      create: {
+        nombre: 'PENDIENTE',
+        descripcion: 'Abastecimiento registrado, pendiente de validación',
+        color: '#FFA500'
+      }
+    }),
+    prisma.estadoTicketAbastecimiento.upsert({
+      where: { nombre: 'APROBADO' },
+      update: {},
+      create: {
+        nombre: 'APROBADO',
+        descripcion: 'Abastecimiento validado y aprobado',
+        color: '#28A745'
+      }
+    }),
+    prisma.estadoTicketAbastecimiento.upsert({
+      where: { nombre: 'RECHAZADO' },
+      update: {},
+      create: {
+        nombre: 'RECHAZADO',
+        descripcion: 'Abastecimiento rechazado por inconsistencias',
+        color: '#DC3545'
+      }
+    }),
+    prisma.estadoTicketAbastecimiento.upsert({
+      where: { nombre: 'EN_REVISION' },
+      update: {},
+      create: {
+        nombre: 'EN_REVISION',
+        descripcion: 'Abastecimiento en proceso de revisión',
+        color: '#17A2B8'
+      }
+    })
+  ]);
 
   // 3.1 Crear Estados de Tickets de Abastecimiento
   console.log('🎫 Creando estados de tickets de abastecimiento...');
@@ -377,7 +412,7 @@ async function main() {
     })
   ]);
 
-  // 9. Crear Grifos de ejemplo
+  // 9. Crear Grifos de ejemplo - ✅ CORREGIDO
   console.log('⛽ Creando grifos...');
   const grifos = await Promise.all([
     prisma.grifo.upsert({
@@ -389,8 +424,8 @@ async function main() {
         codigo: 'GRIFO01',
         direccion: 'Av. Abancay 789, Lima',
         telefono: '01-9876543',
-        horarioApertura: new Date('1970-01-01T06:00:00Z'),
-        horarioCierre: new Date('1970-01-01T22:00:00Z')
+        horarioApertura: '06:00', // ✅ String en formato HH:MM
+        horarioCierre: '22:00'    // ✅ String en formato HH:MM
       }
     }),
     prisma.grifo.upsert({
@@ -402,8 +437,8 @@ async function main() {
         codigo: 'GRIFO02',
         direccion: 'Av. Argentina 321, Callao',
         telefono: '01-5432167',
-        horarioApertura: new Date('1970-01-01T05:00:00Z'),
-        horarioCierre: new Date('1970-01-01T23:00:00Z')
+        horarioApertura: '05:00', // ✅ String en formato HH:MM
+        horarioCierre: '23:00'    // ✅ String en formato HH:MM
       }
     })
   ]);
@@ -428,13 +463,12 @@ async function main() {
     }
   });
 
-  // Asignar rol de ADMIN al usuario
+  // Asignar rol de ADMIN al usuario - ✅ CORREGIDO
   await prisma.usuarioRol.upsert({
     where: {
-      usuarioId_rolId_activo: {
+      usuarioId_rolId: { // ✅ Sin activo
         usuarioId: adminUser.id,
-        rolId: roles[0].id, // ADMIN
-        activo: true
+        rolId: roles[0].id
       }
     },
     update: {},
@@ -466,13 +500,12 @@ async function main() {
     }
   });
 
-  // Asignar rol de CONDUCTOR
+  // Asignar rol de CONDUCTOR - ✅ CORREGIDO
   await prisma.usuarioRol.upsert({
     where: {
-      usuarioId_rolId_activo: {
+      usuarioId_rolId: { // ✅ Sin activo
         usuarioId: conductor1.id,
-        rolId: roles.find(r => r.nombre === 'CONDUCTOR')!.id,
-        activo: true
+        rolId: roles.find(r => r.nombre === 'CONDUCTOR')!.id
       }
     },
     update: {},
@@ -582,6 +615,7 @@ async function main() {
   console.log('📊 Datos creados:');
   console.log(`   - ${roles.length} roles`);
   console.log(`   - ${estadosUnidad.length} estados de unidad`);
+  console.log(`   - ${estadosAbastecimiento.length} estados de abastecimiento`);
   console.log(`   - ${estadosTicket.length} estados de tickets de abastecimiento`);
   console.log(`   - ${turnos.length} turnos`);
   console.log(`   - ${tiposFalla.length} tipos de falla`);
