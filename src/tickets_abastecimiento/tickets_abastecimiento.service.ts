@@ -89,121 +89,463 @@ export class TicketsAbastecimientoService {
   /**
    * Obtener tickets paginados con filtros
    */
-  async findAll(queryDto: QueryTicketDto) {
-    const { page, limit, search, orderBy, orderDirection, ...filters } = queryDto;
+  // async findAll(queryDto: QueryTicketDto) {
+  //   const { page, limit, search, orderBy, orderDirection, ...filters } = queryDto;
     
-    const skip = (page - 1) * Math.min(limit, 100);
-    const take = Math.min(limit, 100);
+  //   const skip = (page - 1) * Math.min(limit, 100);
+  //   const take = Math.min(limit, 100);
 
-    // Construir condiciones WHERE
-    const whereConditions: any = {
-      AND: []
-    };
+  //   // Construir condiciones WHERE
+  //   const whereConditions: any = {
+  //     AND: []
+  //   };
 
-    // Filtro de búsqueda general
-    if (search) {
-      whereConditions.AND.push({
-        OR: [
-          { numeroTicket: { contains: search, mode: 'insensitive' } },
-          { unidad: { placa: { contains: search, mode: 'insensitive' } } },
-          { conductor: { nombres: { contains: search, mode: 'insensitive' } } },
-          { conductor: { apellidos: { contains: search, mode: 'insensitive' } } },
-          { conductor: { dni: { contains: search, mode: 'insensitive' } } }
-        ]
-      });
+  //   // Filtro de búsqueda general
+  //   if (search) {
+  //     whereConditions.AND.push({
+  //       OR: [
+  //         { numeroTicket: { contains: search, mode: 'insensitive' } },
+  //         { unidad: { placa: { contains: search, mode: 'insensitive' } } },
+  //         { conductor: { nombres: { contains: search, mode: 'insensitive' } } },
+  //         { conductor: { apellidos: { contains: search, mode: 'insensitive' } } },
+  //         { conductor: { dni: { contains: search, mode: 'insensitive' } } }
+  //       ]
+  //     });
+  //   }
+
+  //   // Filtros específicos
+  //   if (filters.unidadId) {
+  //     whereConditions.AND.push({ unidadId: filters.unidadId });
+  //   }
+
+  //   if (filters.conductorId) {
+  //     whereConditions.AND.push({ conductorId: filters.conductorId });
+  //   }
+
+  //   if (filters.grifoId) {
+  //     whereConditions.AND.push({ grifoId: filters.grifoId });
+  //   }
+
+  //   if (filters.estadoId) {
+  //     whereConditions.AND.push({ estadoId: filters.estadoId });
+  //   }
+
+  //   if (filters.tipoCombustible) {
+  //     whereConditions.AND.push({ tipoCombustible: filters.tipoCombustible });
+  //   }
+
+  //   // Filtro de fechas
+  //   if (filters.fechaInicio || filters.fechaFin) {
+  //     const fechaConditions: any = {};
+  //     if (filters.fechaInicio) {
+  //       fechaConditions.gte = new Date(filters.fechaInicio);
+  //     }
+  //     if (filters.fechaFin) {
+  //       fechaConditions.lte = new Date(filters.fechaFin);
+  //     }
+  //     whereConditions.AND.push({ fecha: fechaConditions });
+  //   }
+
+  //   // Filtro solo pendientes
+  //   if (filters.solosPendientes) {
+  //     whereConditions.AND.push({
+  //       estado: { nombre: 'SOLICITADO' }
+  //     });
+  //   }
+
+  //   // Si no hay condiciones, remover el AND vacío
+  //   if (whereConditions.AND.length === 0) {
+  //     delete whereConditions.AND;
+  //   }
+
+  //   // Configurar ordenamiento
+  //   const orderByClause = this.buildOrderBy(orderBy, orderDirection);
+
+  //   // Ejecutar consultas
+  //   const [tickets, total] = await Promise.all([
+  //     this.prisma.ticketAbastecimiento.findMany({
+  //       where: whereConditions,
+  //       skip,
+  //       take,
+  //       orderBy: orderByClause,
+  //       include: this.getIncludeOptions()
+  //     }),
+  //     this.prisma.ticketAbastecimiento.count({ where: whereConditions })
+  //   ]);
+
+  //   // Transformar resultados
+  //   const ticketsTransformed = tickets.map(ticket => this.transformToResponseDto(ticket));
+
+  //   return {
+  //     data: ticketsTransformed,
+  //     meta: {
+  //       total,
+  //       page,
+  //       pageSize: take,
+  //       totalPages: Math.ceil(total / take),
+  //       hasNextPage: skip + take < total,
+  //       hasPreviousPage: page > 1
+  //     }
+  //   };
+  // }
+
+  async findAll(queryDto: QueryTicketDto) {
+  const { page, limit, search, orderBy, orderDirection, ...filters } = queryDto;
+  
+  const skip = (page - 1) * Math.min(limit, 100);
+  const take = Math.min(limit, 100);
+
+  // Construir condiciones WHERE
+  const whereConditions: any = {
+    AND: []
+  };
+
+  // Filtro de búsqueda general
+  if (search) {
+    whereConditions.AND.push({
+      OR: [
+        { numeroTicket: { contains: search, mode: 'insensitive' } },
+        { unidad: { placa: { contains: search, mode: 'insensitive' } } },
+        { conductor: { nombres: { contains: search, mode: 'insensitive' } } },
+        { conductor: { apellidos: { contains: search, mode: 'insensitive' } } },
+        { conductor: { dni: { contains: search, mode: 'insensitive' } } }
+      ]
+    });
+  }
+
+  // Filtros específicos
+  if (filters.unidadId) {
+    whereConditions.AND.push({ unidadId: filters.unidadId });
+  }
+
+  if (filters.conductorId) {
+    whereConditions.AND.push({ conductorId: filters.conductorId });
+  }
+
+  if (filters.grifoId) {
+    whereConditions.AND.push({ grifoId: filters.grifoId });
+  }
+
+  if (filters.estadoId) {
+    whereConditions.AND.push({ estadoId: filters.estadoId });
+  }
+
+  if (filters.tipoCombustible) {
+    whereConditions.AND.push({ tipoCombustible: filters.tipoCombustible });
+  }
+
+  // Filtro de fechas
+  if (filters.fechaInicio || filters.fechaFin) {
+    const fechaConditions: any = {};
+    if (filters.fechaInicio) {
+      fechaConditions.gte = new Date(filters.fechaInicio);
     }
-
-    // Filtros específicos
-    if (filters.unidadId) {
-      whereConditions.AND.push({ unidadId: filters.unidadId });
+    if (filters.fechaFin) {
+      fechaConditions.lte = new Date(filters.fechaFin);
     }
+    whereConditions.AND.push({ fecha: fechaConditions });
+  }
 
-    if (filters.conductorId) {
-      whereConditions.AND.push({ conductorId: filters.conductorId });
-    }
+  // Filtro solo pendientes
+  if (filters.solosPendientes) {
+    whereConditions.AND.push({
+      estado: { nombre: 'SOLICITADO' }
+    });
+  }
 
-    if (filters.grifoId) {
-      whereConditions.AND.push({ grifoId: filters.grifoId });
-    }
+  // Si no hay condiciones, remover el AND vacío
+  if (whereConditions.AND.length === 0) {
+    delete whereConditions.AND;
+  }
 
-    if (filters.estadoId) {
-      whereConditions.AND.push({ estadoId: filters.estadoId });
-    }
+  // Configurar ordenamiento
+  const orderByClause = this.buildOrderBy(orderBy, orderDirection);
 
-    if (filters.tipoCombustible) {
-      whereConditions.AND.push({ tipoCombustible: filters.tipoCombustible });
-    }
-
-    // Filtro de fechas
-    if (filters.fechaInicio || filters.fechaFin) {
-      const fechaConditions: any = {};
-      if (filters.fechaInicio) {
-        fechaConditions.gte = new Date(filters.fechaInicio);
+  // ========== OPTIMIZACIÓN: SELECT ESPECÍFICO ==========
+  // Ejecutar consultas con SELECT optimizado
+  const [tickets, total] = await Promise.all([
+    this.prisma.ticketAbastecimiento.findMany({
+      where: whereConditions,
+      skip,
+      take,
+      orderBy: orderByClause,
+      select: {
+        // Campos principales del ticket
+        id: true,
+        numeroTicket: true,
+        fecha: true,
+        hora: true,
+        kilometrajeActual: true,
+        kilometrajeAnterior: true,
+        precintoNuevo: true,
+        tipoCombustible: true,
+        cantidad: true,
+        observacionesSolicitud: true,
+        fechaSolicitud: true,
+        motivoRechazo: true,
+        fechaRechazo: true,
+        createdAt: true,
+        updatedAt: true,
+        
+        // Turno - Solo campos esenciales
+        turno: {
+          select: {
+            id: true,
+            nombre: true,
+            horaInicio: true,
+            horaFin: true
+          }
+        },
+        
+        // Unidad - Solo campos esenciales
+        unidad: {
+          select: {
+            id: true,
+            placa: true,
+            marca: true,
+            modelo: true,
+            tipoCombustible: true
+          }
+        },
+        
+        // Conductor - Solo campos esenciales
+        conductor: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            dni: true,
+            codigoEmpleado: true
+          }
+        },
+        
+        // Grifo - Solo campos esenciales
+        grifo: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            direccion: true
+          }
+        },
+        
+        // Ruta - Solo campos esenciales (opcional)
+        ruta: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            origen: true,
+            destino: true
+          }
+        },
+        
+        // Estado - Solo campos esenciales
+        estado: {
+          select: {
+            id: true,
+            nombre: true,
+            descripcion: true,
+            color: true
+          }
+        },
+        
+        // Usuario que solicitó - Solo campos esenciales
+        solicitadoPor: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            codigoEmpleado: true
+          }
+        },
+        
+        // Usuario que rechazó - Solo campos esenciales (opcional)
+        rechazadoPor: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            codigoEmpleado: true
+          }
+        }
       }
-      if (filters.fechaFin) {
-        fechaConditions.lte = new Date(filters.fechaFin);
-      }
-      whereConditions.AND.push({ fecha: fechaConditions });
-    }
+    }),
+    this.prisma.ticketAbastecimiento.count({ where: whereConditions })
+  ]);
 
-    // Filtro solo pendientes
-    if (filters.solosPendientes) {
-      whereConditions.AND.push({
-        estado: { nombre: 'SOLICITADO' }
-      });
-    }
-
-    // Si no hay condiciones, remover el AND vacío
-    if (whereConditions.AND.length === 0) {
-      delete whereConditions.AND;
-    }
-
-    // Configurar ordenamiento
-    const orderByClause = this.buildOrderBy(orderBy, orderDirection);
-
-    // Ejecutar consultas
-    const [tickets, total] = await Promise.all([
-      this.prisma.ticketAbastecimiento.findMany({
-        where: whereConditions,
-        skip,
-        take,
-        orderBy: orderByClause,
-        include: this.getIncludeOptions()
-      }),
-      this.prisma.ticketAbastecimiento.count({ where: whereConditions })
-    ]);
-
-    // Transformar resultados
-    const ticketsTransformed = tickets.map(ticket => this.transformToResponseDto(ticket));
+  // Calcular diferencia de kilometraje para cada ticket
+  const ticketsConDiferencia = tickets.map(ticket => {
+    // Convertir Decimal a Number primero
+    const kmActual = Number(ticket.kilometrajeActual) || 0;
+    const kmAnterior = ticket.kilometrajeAnterior ? Number(ticket.kilometrajeAnterior) : null;
+    
+    // Calcular diferencia
+    const diferenciaKilometraje = kmAnterior 
+      ? Number((kmActual - kmAnterior).toFixed(2))
+      : 0;
 
     return {
-      data: ticketsTransformed,
-      meta: {
-        total,
-        page,
-        pageSize: take,
-        totalPages: Math.ceil(total / take),
-        hasNextPage: skip + take < total,
-        hasPreviousPage: page > 1
-      }
+      ...ticket,
+      diferenciaKilometraje,
+      // Formatear fechas y horas
+      fecha: ticket.fecha?.toISOString().split('T')[0],
+      hora: ticket.hora?.toISOString().split('T')[1]?.split('.')[0],
+      // Convertir Decimals de Prisma a Numbers
+      kilometrajeActual: kmActual,
+      kilometrajeAnterior: kmAnterior,
+      cantidad: Number(ticket.cantidad) || 0
     };
-  }
+  });
+
+  return {
+    data: ticketsConDiferencia,
+    meta: {
+      total,
+      page,
+      pageSize: take,
+      totalPages: Math.ceil(total / take),
+      hasNextPage: page < Math.ceil(total / take),
+      hasPreviousPage: page > 1
+    }
+  };
+}
+
 
   /**
    * Obtener ticket por ID
    */
-  async findOne(id: number): Promise<TicketAbastecimientoResponseDto> {
-    const ticket = await this.prisma.ticketAbastecimiento.findUnique({
-      where: { id },
-      include: this.getIncludeOptions()
-    });
+  // async findOne(id: number): Promise<TicketAbastecimientoResponseDto> {
+  //   const ticket = await this.prisma.ticketAbastecimiento.findUnique({
+  //     where: { id },
+  //     include: this.getIncludeOptions()
+  //   });
 
-    if (!ticket) {
-      throw new NotFoundException(`Ticket con ID ${id} no encontrado`);
+  //   if (!ticket) {
+  //     throw new NotFoundException(`Ticket con ID ${id} no encontrado`);
+  //   }
+
+  //   return this.transformToResponseDto(ticket);
+  // }
+  async findOne(id: number) {
+  const ticket = await this.prisma.ticketAbastecimiento.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      numeroTicket: true,
+      fecha: true,
+      hora: true,
+      kilometrajeActual: true,
+      kilometrajeAnterior: true,
+      precintoNuevo: true,
+      tipoCombustible: true,
+      cantidad: true,
+      observacionesSolicitud: true,
+      fechaSolicitud: true,
+      motivoRechazo: true,
+      fechaRechazo: true,
+      createdAt: true,
+      updatedAt: true,
+      
+      turno: {
+        select: {
+          id: true,
+          nombre: true,
+          horaInicio: true,
+          horaFin: true
+        }
+      },
+      unidad: {
+        select: {
+          id: true,
+          placa: true,
+          marca: true,
+          modelo: true,
+          tipoCombustible: true,
+          // zona: {
+          //   select: {
+          //     id: true,
+          //     nombre: true
+          //   }
+          // }
+        }
+      },
+      conductor: {
+        select: {
+          id: true,
+          nombres: true,
+          apellidos: true,
+          dni: true,
+          codigoEmpleado: true
+        }
+      },
+      grifo: {
+        select: {
+          id: true,
+          nombre: true,
+          codigo: true,
+          direccion: true
+        }
+      },
+      ruta: {
+        select: {
+          id: true,
+          nombre: true,
+          codigo: true,
+          origen: true,
+          destino: true
+        }
+      },
+      estado: {
+        select: {
+          id: true,
+          nombre: true,
+          descripcion: true,
+          color: true
+        }
+      },
+      solicitadoPor: {
+        select: {
+          id: true,
+          nombres: true,
+          apellidos: true,
+          codigoEmpleado: true
+        }
+      },
+      rechazadoPor: {
+        select: {
+          id: true,
+          nombres: true,
+          apellidos: true,
+          codigoEmpleado: true
+        }
+      }
     }
+  });
 
-    return this.transformToResponseDto(ticket);
+  if (!ticket) {
+    throw new NotFoundException(`Ticket con ID ${id} no encontrado`);
   }
+
+  // Convertir Decimals a Number primero
+  const kmActual = Number(ticket.kilometrajeActual) || 0;
+  const kmAnterior = ticket.kilometrajeAnterior ? Number(ticket.kilometrajeAnterior) : null;
+
+  // Calcular diferencia de kilometraje
+  const diferenciaKilometraje = kmAnterior 
+    ? Number((kmActual - kmAnterior).toFixed(2))
+    : 0;
+
+  return {
+    ...ticket,
+    diferenciaKilometraje,
+    fecha: ticket.fecha?.toISOString().split('T')[0],
+    hora: ticket.hora?.toISOString().split('T')[1]?.split('.')[0],
+    kilometrajeActual: kmActual,
+    kilometrajeAnterior: kmAnterior,
+    cantidad: Number(ticket.cantidad) || 0
+  };
+}
 
   /**
    * Actualizar ticket (solo si está en estado SOLICITADO)
@@ -453,7 +795,7 @@ export class TicketsAbastecimientoService {
   /**
    * Obtener tickets por unidad
    */
-  async findByUnidad(unidadId: number, limit: number = 10) {
+  async findByUnidad(unidadId: number) {
     const unidad = await this.prisma.unidad.findUnique({
       where: { id: unidadId }
     });
@@ -464,7 +806,7 @@ export class TicketsAbastecimientoService {
 
     const tickets = await this.prisma.ticketAbastecimiento.findMany({
       where: { unidadId },
-      take: limit,
+      // take: limit,
       orderBy: { fecha: 'desc' },
       include: this.getIncludeOptions()
     });
@@ -625,18 +967,19 @@ export class TicketsAbastecimientoService {
   /**
    * Construir cláusula orderBy
    */
-  private buildOrderBy(orderBy: string, orderDirection: string) {
-    const orderMap = {
-      fecha: { fecha: orderDirection },
-      numeroTicket: { numeroTicket: orderDirection },
-      unidad: { unidad: { placa: orderDirection } },
-      conductor: { conductor: { apellidos: orderDirection } },
-      cantidad: { cantidad: orderDirection },
-      estado: { estado: { nombre: orderDirection } }
-    };
+  private buildOrderBy(orderBy: string, orderDirection: 'asc' | 'desc') {
+  const validOrderFields = {
+    fecha: { fecha: orderDirection },
+    numeroTicket: { numeroTicket: orderDirection },
+    unidad: { unidad: { placa: orderDirection } },
+    conductor: { conductor: { apellidos: orderDirection } },
+    cantidad: { cantidad: orderDirection },
+    estado: { estado: { nombre: orderDirection } },
+    kilometrajeActual: { kilometrajeActual: orderDirection }
+  };
 
-    return orderMap[orderBy] || { fecha: 'desc' };
-  }
+  return validOrderFields[orderBy] || { fecha: 'desc', numeroTicket: 'desc' };
+}
 
   /**
    * Opciones de include para consultas

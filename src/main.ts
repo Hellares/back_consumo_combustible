@@ -57,6 +57,7 @@ async function bootstrap() {
     .addTag('usuarios', 'Gestión de usuarios')
     .addTag('unidades', 'Gestión de unidades de transporte')
     .addTag('abastecimientos', 'Control de abastecimientos')
+    .addTag('Archivos de Tickets', 'Gestión de archivos y documentos')
     .addTag('mantenimientos', 'Gestión de mantenimientos')
     .addTag('fallas', 'Gestión de fallas y reparaciones')
     .addTag('inspecciones', 'Inspecciones de unidades')

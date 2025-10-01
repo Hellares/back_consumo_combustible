@@ -265,9 +265,8 @@ export class TicketsAbastecimientoController {
   })
   async findByUnidad(
     @Param('unidadId', ParseIntPipe) unidadId: number,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number
   ): Promise<TicketAbastecimientoResponseDto[]> {
-    return this.ticketsService.findByUnidad(unidadId, limit);
+    return this.ticketsService.findByUnidad(unidadId);
   }
 
   @Get('conductor/:conductorId')
@@ -321,7 +320,7 @@ export class TicketsAbastecimientoController {
   @ApiNotFoundResponse({
     description: 'Ticket no encontrado'
   })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<TicketAbastecimientoResponseDto> {
+  async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.ticketsService.findOne(id);
   }
 

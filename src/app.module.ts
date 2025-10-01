@@ -14,6 +14,7 @@ import { LicenciasConducirModule } from './licencias_conducir/licencias_conducir
 import { UnidadesModule } from './unidades/unidades.module';
 import { TurnosModule } from './turnos/turnos.module';
 import { TicketsAbastecimientoModule } from './tickets_abastecimiento/tickets_abastecimiento.module';
+import { ArchivosModule } from './archivos/archivos.module';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { TicketsAbastecimientoModule } from './tickets_abastecimiento/tickets_ab
     }),
     PrismaModule, 
     AuthModule, 
-    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule, TurnosModule, TicketsAbastecimientoModule,
+    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule, TurnosModule, TicketsAbastecimientoModule, ArchivosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -540,6 +540,10 @@ model TicketAbastecimiento {
   archivos              ArchivoTicket[]
 
   @@map("tickets_abastecimiento")
+  @@index([unidadId, fecha])
+  @@index([conductorId, fecha])
+  @@index([estadoId, fecha])
+  @@index([grifoId])
 }
 
 // TABLA DE DETALLE - SOLO CUANDO SE APRUEBA

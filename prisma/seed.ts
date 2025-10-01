@@ -148,46 +148,6 @@ async function main() {
     })
   ]);
 
-  // 3. Crear Estados de Abastecimiento
-  console.log('⛽ Creando estados de abastecimiento...');
-  const estadosAbastecimiento = await Promise.all([
-    prisma.estadoAbastecimiento.upsert({
-      where: { nombre: 'PENDIENTE' },
-      update: {},
-      create: {
-        nombre: 'PENDIENTE',
-        descripcion: 'Abastecimiento registrado, pendiente de validación',
-        color: '#FFA500'
-      }
-    }),
-    prisma.estadoAbastecimiento.upsert({
-      where: { nombre: 'APROBADO' },
-      update: {},
-      create: {
-        nombre: 'APROBADO',
-        descripcion: 'Abastecimiento validado y aprobado',
-        color: '#28A745'
-      }
-    }),
-    prisma.estadoAbastecimiento.upsert({
-      where: { nombre: 'RECHAZADO' },
-      update: {},
-      create: {
-        nombre: 'RECHAZADO',
-        descripcion: 'Abastecimiento rechazado por inconsistencias',
-        color: '#DC3545'
-      }
-    }),
-    prisma.estadoAbastecimiento.upsert({
-      where: { nombre: 'EN_REVISION' },
-      update: {},
-      create: {
-        nombre: 'EN_REVISION',
-        descripcion: 'Abastecimiento en proceso de revisión',
-        color: '#17A2B8'
-      }
-    })
-  ]);
 
   // 3.1 Crear Estados de Tickets de Abastecimiento
   console.log('🎫 Creando estados de tickets de abastecimiento...');
@@ -622,7 +582,6 @@ async function main() {
   console.log('📊 Datos creados:');
   console.log(`   - ${roles.length} roles`);
   console.log(`   - ${estadosUnidad.length} estados de unidad`);
-  console.log(`   - ${estadosAbastecimiento.length} estados de abastecimiento`);
   console.log(`   - ${estadosTicket.length} estados de tickets de abastecimiento`);
   console.log(`   - ${turnos.length} turnos`);
   console.log(`   - ${tiposFalla.length} tipos de falla`);
