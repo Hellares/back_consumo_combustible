@@ -127,7 +127,7 @@ export class GrifosController {
   }
 
   @Get('stats')
-  @UseGuards(JwtPermissionsGuard)
+  // @UseGuards(JwtPermissionsGuard)
   // @Permissions({ resource: 'grifos', actions: ['read'] })
   @ApiOperation({
     summary: 'Estadísticas de grifos',
@@ -156,9 +156,9 @@ export class GrifosController {
       }
     }
   })
-  // async getStats() {
-  //   return this.grifosService.getStats();
-  // }
+  async getStats() {
+    return this.grifosService.getStats();
+  }
 
   @Get('abiertos')
   @UseGuards(JwtPermissionsGuard)

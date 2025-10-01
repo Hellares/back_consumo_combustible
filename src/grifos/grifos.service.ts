@@ -68,18 +68,18 @@ export class GrifosService {
       }
 
       // Preparar datos para crear
-      const data: any = { ...createGrifoDto };
+      // const data: any = { ...createGrifoDto };
       
-      // Convertir horarios a formato DateTime para Prisma
-      if (data.horarioApertura) {
-        data.horarioApertura = new Date(`1970-01-01T${data.horarioApertura}:00Z`);
-      }
-      if (data.horarioCierre) {
-        data.horarioCierre = new Date(`1970-01-01T${data.horarioCierre}:00Z`);
-      }
+      // // Convertir horarios a formato DateTime para Prisma
+      // if (data.horarioApertura) {
+      //   data.horarioApertura = new Date(`1970-01-01T${data.horarioApertura}:00Z`);
+      // }
+      // if (data.horarioCierre) {
+      //   data.horarioCierre = new Date(`1970-01-01T${data.horarioCierre}:00Z`);
+      // }
 
       const grifo = await this.prisma.grifo.create({
-        data,
+        data: createGrifoDto,
         include: {
           sede: {
             include: {
@@ -94,7 +94,7 @@ export class GrifosService {
           },
           _count: {
             select: {
-              // abastecimientos: true
+              ticketsAbastecimiento: true
             }
           }
         }
@@ -178,7 +178,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            // abastecimientos: true
+            ticketsAbastecimiento: true
           }
         }
       }
@@ -563,39 +563,39 @@ export class GrifosService {
   }
 
   // Método para obtener estadísticas de grifos
-  // async getStats() {
-  //   const [total, activos, inactivos, conAbastecimientos, abiertos] = await Promise.all([
-  //     this.prisma.grifo.count(),
-  //     this.prisma.grifo.count({ where: { activo: true } }),
-  //     this.prisma.grifo.count({ where: { activo: false } }),
-  //     this.prisma.grifo.count({
-  //       where: {
-  //         abastecimientos: {
-  //           some: {}
-  //         }
-  //       }
-  //     }),
-  //     this.findAbiertos().then(grifos => grifos.length)
-  //   ]);
+  async getStats() {
+    const [total, activos, inactivos, conAbastecimientos, abiertos] = await Promise.all([
+      this.prisma.grifo.count(),
+      this.prisma.grifo.count({ where: { activo: true } }),
+      this.prisma.grifo.count({ where: { activo: false } }),
+      this.prisma.grifo.count({
+        where: {
+          ticketsAbastecimiento: {
+            some: {}
+          }
+        }
+      }),
+      this.findAbiertos().then(grifos => grifos.length)
+    ]);
 
-  //   const distribucePorSede = await this.prisma.grifo.groupBy({
-  //     by: ['sedeId'],
-  //     _count: {
-  //       id: true
-  //     }
-  //   });
+    const distribucePorSede = await this.prisma.grifo.groupBy({
+      by: ['sedeId'],
+      _count: {
+        id: true
+      }
+    });
 
-  //   return {
-  //     total,
-  //     activos,
-  //     inactivos,
-  //     conAbastecimientos,
-  //     sinAbastecimientos: total - conAbastecimientos,
-  //     abiertos,
-  //     cerrados: activos - abiertos,
-  //     distribucePorSede
-  //   };
-  // }
+    return {
+      total,
+      activos,
+      inactivos,
+      conAbastecimientos,
+      sinAbastecimientos: total - conAbastecimientos,
+      abiertos,
+      cerrados: activos - abiertos,
+      distribucePorSede
+    };
+  }
 
   // Métodos auxiliares privados
   private validateHorarios(apertura: string, cierre: string): void {
@@ -615,28 +615,37 @@ export class GrifosService {
     return date.toISOString().substring(11, 16); // Extrae HH:MM
   }
 
-  private isAbierto(horarioApertura: Date | null, horarioCierre: Date | null): boolean {
-    if (!horarioApertura || !horarioCierre) return true; // Si no hay horarios definidos, se considera abierto
+  private isAbierto(horarioApertura: string | null, horarioCierre: string | null): boolean {
+    if (!horarioApertura || !horarioCierre) {
+      return true; // Si no hay horarios definidos, se considera abierto
+    }
 
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
     
-    const apertura = horarioApertura.getHours() * 60 + horarioApertura.getMinutes();
-    const cierre = horarioCierre.getHours() * 60 + horarioCierre.getMinutes();
+    const [horaApertura, minApertura] = horarioApertura.split(':').map(Number);
+    const [horaCierre, minCierre] = horarioCierre.split(':').map(Number);
+    
+    const apertura = horaApertura * 60 + minApertura;
+    const cierre = horaCierre * 60 + minCierre;
     
     return currentTime >= apertura && currentTime <= cierre;
   }
 
   // Método privado para transformar la entidad a DTO de respuesta
   private transformToResponseDto(grifo: any): GrifoResponseDto {
-    return plainToInstance(GrifoResponseDto, {
-      ...grifo,
-      horarioApertura: this.formatTimeFromDate(grifo.horarioApertura),
-      horarioCierre: this.formatTimeFromDate(grifo.horarioCierre),
-      abastecimientosCount: grifo._count?.abastecimientos || 0,
-      estaAbierto: this.isAbierto(grifo.horarioApertura, grifo.horarioCierre) && grifo.activo
-    }, {
-      excludeExtraneousValues: true
-    });
-  }
+  return plainToInstance(GrifoResponseDto, {
+    ...grifo,
+    // ✅ Asegúrate de incluir el count
+    ticketsAbastecimientoCount: grifo._count?.ticketsAbastecimiento || 0,
+    estaAbierto: this.isAbierto(grifo.horarioApertura, grifo.horarioCierre) && grifo.activo,
+    // ✅ Asegúrate de que la zona se incluya correctamente
+    sede: {
+      ...grifo.sede,
+      zona: grifo.sede?.zona || null
+    }
+  }, {
+    excludeExtraneousValues: true
+  });
+}
 }

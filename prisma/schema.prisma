@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native"]
   // output   = "../generated/prisma"
 }
@@ -31,6 +31,63 @@ datasource db {
 //   PREDICTIVO
 //   URGENTE
 // }
+
+enum EstadoRuta {
+  ACTIVA
+  INACTIVA
+  EN_REVISION
+}
+
+enum EstadoItinerario {
+  ACTIVO
+  INACTIVO
+  EN_MANTENIMIENTO
+}
+
+enum FrecuenciaItinerario {
+  DIARIO
+  SEMANAL
+  MENSUAL
+  LUNES_VIERNES
+  FINES_SEMANA
+  PERSONALIZADO
+}
+
+enum EstadoEjecucion {
+  PROGRAMADO
+  EN_CURSO
+  COMPLETADO
+  CANCELADO
+}
+
+enum EstadoTramo {
+  PENDIENTE
+  EN_CURSO
+  COMPLETADO
+  OMITIDO
+}
+
+enum TipoTramo {
+  IDA
+  VUELTA
+  INTERMEDIO
+  CIRCULAR
+}
+
+enum TipoDesvio {
+  TIEMPO
+  KILOMETRAJE
+  COMBUSTIBLE
+  PARADA_NO_REALIZADA
+  RUTA_ALTERADA
+}
+
+enum SeveridadDesvio {
+  LEVE
+  MODERADO
+  GRAVE
+  CRITICO
+}
 
 model Zona {
   id          Int      @id @default(autoincrement())
@@ -67,21 +124,21 @@ model Sede {
 }
 
 model Grifo {
-  id             Int     @id @default(autoincrement())
-  sedeId         Int     @map("sede_id")
-  nombre         String  @db.VarChar(100)
-  codigo         String? @unique @db.VarChar(10)
-  direccion      String?
-  telefono       String? @db.VarChar(20)
-  horarioApertura String? @map("horario_apertura") @db.VarChar(5) // "08:00"
-  horarioCierre   String? @map("horario_cierre") @db.VarChar(5)   // "20:00"
-  activo         Boolean @default(true)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+  id              Int      @id @default(autoincrement())
+  sedeId          Int      @map("sede_id")
+  nombre          String   @db.VarChar(100)
+  codigo          String?  @unique @db.VarChar(10)
+  direccion       String?
+  telefono        String?  @db.VarChar(20)
+  horarioApertura String?  @map("horario_apertura") @db.VarChar(5) // "08:00"
+  horarioCierre   String?  @map("horario_cierre") @db.VarChar(5) // "20:00"
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones
-  sede                  Sede                     @relation(fields: [sedeId], references: [id], onDelete: Cascade)
-  ticketsAbastecimiento TicketAbastecimiento[]   // NUEVO - Sistema de tickets
+  sede                  Sede                   @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  ticketsAbastecimiento TicketAbastecimiento[] // NUEVO - Sistema de tickets
 
   @@index([sedeId])
   @@map("grifos")
@@ -106,69 +163,77 @@ model Rol {
 }
 
 model Usuario {
-  id             Int      @id @default(autoincrement())
-  nombres        String   @db.VarChar(100)
-  apellidos      String   @db.VarChar(100)
-  email          String?  @unique @db.VarChar(150)
-  telefono       String?  @db.VarChar(20)
-  dni            String?  @unique @db.VarChar(15)
-  codigoEmpleado String?  @unique @map("codigo_empleado") @db.VarChar(20)
-  passwordHash   String?  @map("password_hash")
+  id             Int       @id @default(autoincrement())
+  nombres        String    @db.VarChar(100)
+  apellidos      String    @db.VarChar(100)
+  email          String?   @unique @db.VarChar(150)
+  telefono       String?   @db.VarChar(20)
+  dni            String?   @unique @db.VarChar(15)
+  codigoEmpleado String?   @unique @map("codigo_empleado") @db.VarChar(20)
+  passwordHash   String?   @map("password_hash")
   fechaIngreso   DateTime? @map("fecha_ingreso") @db.Date
-  activo         Boolean  @default(true)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+  activo         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones existentes
-  roles                    UsuarioRol[]
-  licenciasConducir        LicenciaConducir[]
-  unidadesAsignadas        Unidad[]                     @relation("ConductorOperador")
-  historialEstados         HistorialEstadoUnidad[]      @relation("HistorialReportador")
-  historialEstadosAutorizador HistorialEstadoUnidad[]   @relation("HistorialAutorizador")
-  fallasDetectadas         FallaUnidad[]                @relation("FallaDetectada")
-  fallasVerificadas        FallaUnidad[]                @relation("FallaVerificada")
-  fallasReparadas          FallaUnidad[]                @relation("FallaReparada")
-  fallasCerradas           FallaUnidad[]                @relation("FallaCerrada")
-  inspeccionesRealizadas   InspeccionUnidad[]           @relation("InspeccionInspector")
-  inspeccionesConductorEntrante InspeccionUnidad[]      @relation("InspeccionConductorEntrante")
-  inspeccionesConductorSaliente InspeccionUnidad[]      @relation("InspeccionConductorSaliente")
-  mantenimientosRealizados MantenimientoUnidad[]        @relation("MantenimientoRealizado")
-  historialConductores     UnidadConductorHistorial[]   @relation("HistorialConductor")
-  historialAsignaciones    UnidadConductorHistorial[]   @relation("HistorialAsignador")
-  asignacionesRutas        UnidadRuta[]
-  rolesAsignados           UsuarioRol[]                 @relation("RolAsignador")
-  alertasConductor         Alerta[]                     @relation("AlertaConductor")
-  alertasResueltas         Alerta[]                     @relation("AlertaResueltoPor")
+  roles                         UsuarioRol[]
+  licenciasConducir             LicenciaConducir[]
+  unidadesAsignadas             Unidad[]                   @relation("ConductorOperador")
+  historialEstados              HistorialEstadoUnidad[]    @relation("HistorialReportador")
+  historialEstadosAutorizador   HistorialEstadoUnidad[]    @relation("HistorialAutorizador")
+  fallasDetectadas              FallaUnidad[]              @relation("FallaDetectada")
+  fallasVerificadas             FallaUnidad[]              @relation("FallaVerificada")
+  fallasReparadas               FallaUnidad[]              @relation("FallaReparada")
+  fallasCerradas                FallaUnidad[]              @relation("FallaCerrada")
+  inspeccionesRealizadas        InspeccionUnidad[]         @relation("InspeccionInspector")
+  inspeccionesConductorEntrante InspeccionUnidad[]         @relation("InspeccionConductorEntrante")
+  inspeccionesConductorSaliente InspeccionUnidad[]         @relation("InspeccionConductorSaliente")
+  mantenimientosRealizados      MantenimientoUnidad[]      @relation("MantenimientoRealizado")
+  historialConductores          UnidadConductorHistorial[] @relation("HistorialConductor")
+  historialAsignaciones         UnidadConductorHistorial[] @relation("HistorialAsignador")
+  rolesAsignados                UsuarioRol[]               @relation("RolAsignador")
+  alertasConductor              Alerta[]                   @relation("AlertaConductor")
+  alertasResueltas              Alerta[]                   @relation("AlertaResueltoPor")
 
-  // NUEVAS RELACIONES - Sistema de tickets
-  ticketsSolicitados       TicketAbastecimiento[]  @relation("TicketSolicitadoPor")
-  ticketsConductor         TicketAbastecimiento[]  @relation("TicketConductor")
-  ticketsRechazados        TicketAbastecimiento[]  @relation("TicketRechazadoPor")
-  detallesControlados      DetalleAbastecimiento[] @relation("DetalleControlador")
-  detallesAprobados        DetalleAbastecimiento[] @relation("DetalleAprobadoPor")
-
-  archivosSubidos           ArchivoTicket[]                @relation("ArchivoSubidoPor")
+  // Sistema de tickets
+  ticketsSolicitados  TicketAbastecimiento[]  @relation("TicketSolicitadoPor")
+  ticketsConductor    TicketAbastecimiento[]  @relation("TicketConductor")
+  ticketsRechazados   TicketAbastecimiento[]  @relation("TicketRechazadoPor")
+  detallesControlados DetalleAbastecimiento[] @relation("DetalleControlador")
+  detallesAprobados   DetalleAbastecimiento[] @relation("DetalleAprobadoPor")
+  archivosSubidos     ArchivoTicket[]         @relation("ArchivoSubidoPor")
 
   // Relaciones de Eventos
-  eventosReportados     EventoUnidad[]    @relation("EventoReportador")
-  eventosConductor      EventoUnidad[]    @relation("EventoConductor")
-  archivosEventoSubidos ArchivoEvento[]   @relation("ArchivoEventoSubidoPor")
+  eventosReportados     EventoUnidad[]  @relation("EventoReportador")
+  eventosConductor      EventoUnidad[]  @relation("EventoConductor")
+  archivosEventoSubidos ArchivoEvento[] @relation("ArchivoEventoSubidoPor")
+
+  //SISTEMA DE RUTAS E ITINERARIOS
+  asignacionesRutaExcepcional   UnidadRuta[]          @relation("UnidadRutaAsignador")
+  autorizacionesRutaExcepcional UnidadRuta[]          @relation("UnidadRutaAutorizador")
+  asignacionesItinerario        UnidadItinerario[]    @relation("UnidadItinerarioAsignador")
+  ejecucionesItinerario         EjecucionItinerario[] @relation("EjecucionConductor")
+  supervisionesEjecucion        EjecucionItinerario[] @relation("EjecucionSupervisor")
+
+  historialItinerarios   ItinerarioHistorial[] @relation("ItinerarioHistorialModificador")
+  alertasDesvioResueltas AlertaDesvio[]        @relation("AlertaDesvioResolutor")
 
   @@map("usuarios")
 }
 
 model UsuarioRol {
-  id               Int       @id @default(autoincrement())
-  usuarioId        Int       @map("usuario_id")
-  rolId            Int       @map("rol_id")
-  fechaAsignacion  DateTime  @default(now()) @map("fecha_asignacion") @db.Date
-  fechaRevocacion  DateTime? @map("fecha_revocacion") @db.Date
-  activo           Boolean   @default(true)
-  asignadoPorId    Int?      @map("asignado_por")
+  id              Int       @id @default(autoincrement())
+  usuarioId       Int       @map("usuario_id")
+  rolId           Int       @map("rol_id")
+  fechaAsignacion DateTime  @default(now()) @map("fecha_asignacion") @db.Date
+  fechaRevocacion DateTime? @map("fecha_revocacion") @db.Date
+  activo          Boolean   @default(true)
+  asignadoPorId   Int?      @map("asignado_por")
 
   // Relaciones
-  usuario     Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  rol         Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol         Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
   asignadoPor Usuario? @relation("RolAsignador", fields: [asignadoPorId], references: [id])
 
   @@unique([usuarioId, rolId]) // Sin activo
@@ -177,16 +242,16 @@ model UsuarioRol {
 }
 
 model LicenciaConducir {
-  id               Int      @id @default(autoincrement())
-  usuarioId        Int      @map("usuario_id")
-  numeroLicencia   String   @unique @map("numero_licencia") @db.VarChar(50)
-  categoria        String   @db.VarChar(20)
-  fechaEmision     DateTime @map("fecha_emision") @db.Date
-  fechaExpiracion  DateTime @map("fecha_expiracion") @db.Date
-  entidadEmisora   String?  @map("entidad_emisora") @db.VarChar(100)
-  activo           Boolean  @default(true)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  id              Int      @id @default(autoincrement())
+  usuarioId       Int      @map("usuario_id")
+  numeroLicencia  String   @unique @map("numero_licencia") @db.VarChar(50)
+  categoria       String   @db.VarChar(20)
+  fechaEmision    DateTime @map("fecha_emision") @db.Date
+  fechaExpiracion DateTime @map("fecha_expiracion") @db.Date
+  entidadEmisora  String?  @map("entidad_emisora") @db.VarChar(100)
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
@@ -199,43 +264,50 @@ model LicenciaConducir {
 // ==============================
 
 model Unidad {
-  id                   Int       @id @default(autoincrement())
-  placa                String    @unique @db.VarChar(20)
-  conductorOperadorId  Int?      @map("conductor_operador_id")
-  operacion            String?   @db.VarChar(100)
-  marca                String    @db.VarChar(50)
-  modelo               String    @db.VarChar(50)
-  anio                 Int?
-  nroVin               String?   @unique @map("nro_vin") @db.VarChar(50)
-  nroMotor             String?   @unique @map("nro_motor") @db.VarChar(50)
-  zonaOperacionId      Int?      @map("zona_operacion_id")
-  capacidadTanque      Decimal?  @map("capacidad_tanque") @db.Decimal(8, 2)
-  tipoCombustible      String    @default("DIESEL") @map("tipo_combustible") @db.VarChar(30)
-  odometroInicial      Decimal   @default(0) @map("odometro_inicial") @db.Decimal(10, 2)
-  horometroInicial     Decimal   @default(0) @map("horometro_inicial") @db.Decimal(10, 2)
-  fechaAdquisicion     DateTime? @map("fecha_adquisicion") @db.Date
-  estado               String    @default("OPERATIVO") @db.VarChar(30)
-  activo               Boolean   @default(true)
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                  Int       @id @default(autoincrement())
+  placa               String    @unique @db.VarChar(20)
+  conductorOperadorId Int?      @map("conductor_operador_id")
+  operacion           String?   @db.VarChar(100)
+  marca               String    @db.VarChar(50)
+  modelo              String    @db.VarChar(50)
+  anio                Int?
+  nroVin              String?   @unique @map("nro_vin") @db.VarChar(50)
+  nroMotor            String?   @unique @map("nro_motor") @db.VarChar(50)
+  zonaOperacionId     Int?      @map("zona_operacion_id")
+  capacidadTanque     Decimal?  @map("capacidad_tanque") @db.Decimal(8, 2)
+  tipoCombustible     String    @default("DIESEL") @map("tipo_combustible") @db.VarChar(30)
+  odometroInicial     Decimal   @default(0) @map("odometro_inicial") @db.Decimal(10, 2)
+  horometroInicial    Decimal   @default(0) @map("horometro_inicial") @db.Decimal(10, 2)
+  fechaAdquisicion    DateTime? @map("fecha_adquisicion") @db.Date
+  estado              String    @default("OPERATIVO") @db.VarChar(30)
+  activo              Boolean   @default(true)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones existentes
-  conductorOperador     Usuario?                   @relation("ConductorOperador", fields: [conductorOperadorId], references: [id])
-  zonaOperacion         Zona?                      @relation(fields: [zonaOperacionId], references: [id])
-  historialEstados      HistorialEstadoUnidad[]
-  fallas                FallaUnidad[]
-  inspecciones          InspeccionUnidad[]
-  mantenimientos        MantenimientoUnidad[]
-  historialConductores  UnidadConductorHistorial[]
-  rutasAsignadas        UnidadRuta[]
-  alertas               Alerta[]
+  conductorOperador    Usuario?                   @relation("ConductorOperador", fields: [conductorOperadorId], references: [id])
+  zonaOperacion        Zona?                      @relation(fields: [zonaOperacionId], references: [id])
+  historialEstados     HistorialEstadoUnidad[]
+  fallas               FallaUnidad[]
+  inspecciones         InspeccionUnidad[]
+  mantenimientos       MantenimientoUnidad[]
+  historialConductores UnidadConductorHistorial[]
+  alertas              Alerta[]
 
   // NUEVA RELACIÓN - Sistema de tickets
-  ticketsAbastecimiento TicketAbastecimiento[]  @relation("TicketUnidad")
+  ticketsAbastecimiento TicketAbastecimiento[] @relation("TicketUnidad")
 
   // Eventos
-  eventos               EventoUnidad[]  @relation("EventosUnidad")
+  eventos                EventoUnidad[] @relation("EventosUnidad")
   eventosComoInvolucrada EventoUnidad[] @relation("EventosInvolucrados")
+
+  // NUEVAS RELACIONES
+  rutasExcepcionales    UnidadRuta[]
+  itinerariosAsignados  UnidadItinerario[]
+  ejecucionesItinerario EjecucionItinerario[]
+
+  //para gps
+  ubicacionesGPS UbicacionGPS[]
 
   @@map("unidades")
 }
@@ -245,13 +317,13 @@ model Unidad {
 // ==============================
 
 model EstadoUnidad {
-  id                   Int     @id @default(autoincrement())
-  nombre               String  @unique @db.VarChar(30)
-  descripcion          String?
-  color                String? @db.VarChar(7)
-  requiereInspeccion   Boolean @default(false) @map("requiere_inspeccion")
-  permiteOperacion     Boolean @default(true) @map("permite_operacion")
-  activo               Boolean @default(true)
+  id                 Int     @id @default(autoincrement())
+  nombre             String  @unique @db.VarChar(30)
+  descripcion        String?
+  color              String? @db.VarChar(7)
+  requiereInspeccion Boolean @default(false) @map("requiere_inspeccion")
+  permiteOperacion   Boolean @default(true) @map("permite_operacion")
+  activo             Boolean @default(true)
 
   // Relaciones
   historialEstadosAnteriores HistorialEstadoUnidad[] @relation("EstadoAnterior")
@@ -261,27 +333,27 @@ model EstadoUnidad {
 }
 
 model HistorialEstadoUnidad {
-  id                 Int       @id @default(autoincrement())
-  unidadId           Int       @map("unidad_id")
-  estadoAnteriorId   Int?      @map("estado_anterior_id")
-  estadoNuevoId      Int       @map("estado_nuevo_id")
-  fechaCambio        DateTime  @default(now()) @map("fecha_cambio")
-  kilometrajeMomento Decimal?  @map("kilometraje_momento") @db.Decimal(10, 2)
-  horometroMomento   Decimal?  @map("horometro_momento") @db.Decimal(10, 2)
-  motivoCambio       String    @map("motivo_cambio")
+  id                 Int      @id @default(autoincrement())
+  unidadId           Int      @map("unidad_id")
+  estadoAnteriorId   Int?     @map("estado_anterior_id")
+  estadoNuevoId      Int      @map("estado_nuevo_id")
+  fechaCambio        DateTime @default(now()) @map("fecha_cambio")
+  kilometrajeMomento Decimal? @map("kilometraje_momento") @db.Decimal(10, 2)
+  horometroMomento   Decimal? @map("horometro_momento") @db.Decimal(10, 2)
+  motivoCambio       String   @map("motivo_cambio")
   observaciones      String?
-  reportadoPorId     Int       @map("reportado_por")
-  autorizadoPorId    Int?      @map("autorizado_por")
-  ubicacion          String?   @db.VarChar(200)
-  costoEstimado      Decimal?  @map("costo_estimado") @db.Decimal(12, 2)
-  createdAt          DateTime  @default(now()) @map("created_at")
+  reportadoPorId     Int      @map("reportado_por")
+  autorizadoPorId    Int?     @map("autorizado_por")
+  ubicacion          String?  @db.VarChar(200)
+  costoEstimado      Decimal? @map("costo_estimado") @db.Decimal(12, 2)
+  createdAt          DateTime @default(now()) @map("created_at")
 
   // Relaciones
-  unidad         Unidad       @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  unidad         Unidad        @relation(fields: [unidadId], references: [id], onDelete: Cascade)
   estadoAnterior EstadoUnidad? @relation("EstadoAnterior", fields: [estadoAnteriorId], references: [id])
-  estadoNuevo    EstadoUnidad @relation("EstadoNuevo", fields: [estadoNuevoId], references: [id])
-  reportadoPor   Usuario      @relation("HistorialReportador", fields: [reportadoPorId], references: [id])
-  autorizadoPor  Usuario?     @relation("HistorialAutorizador", fields: [autorizadoPorId], references: [id])
+  estadoNuevo    EstadoUnidad  @relation("EstadoNuevo", fields: [estadoNuevoId], references: [id])
+  reportadoPor   Usuario       @relation("HistorialReportador", fields: [reportadoPorId], references: [id])
+  autorizadoPor  Usuario?      @relation("HistorialAutorizador", fields: [autorizadoPorId], references: [id])
 
   // Eventos que generaron este cambio
   eventosRelacionados EventoUnidad[]
@@ -304,37 +376,37 @@ model TipoFalla {
 }
 
 model FallaUnidad {
-  id                     Int       @id @default(autoincrement())
-  unidadId               Int       @map("unidad_id")
-  tipoFallaId            Int       @map("tipo_falla_id")
-  fechaDeteccion         DateTime  @default(now()) @map("fecha_deteccion")
-  kilometrajeDeteccion   Decimal?  @map("kilometraje_deteccion") @db.Decimal(10, 2)
-  horometroDeteccion     Decimal?  @map("horometro_deteccion") @db.Decimal(10, 2)
-  titulo                 String    @db.VarChar(200)
-  descripcionDetallada   String    @map("descripcion_detallada")
-  sintomas               String?
-  causaProbable          String?   @map("causa_probable")
-  prioridad              String    @default("MEDIA") @db.VarChar(20)
-  impactoOperacion       String    @default("NINGUNO") @map("impacto_operacion") @db.VarChar(30)
-  detectadoPorId         Int       @map("detectado_por")
-  verificadoPorId        Int?      @map("verificado_por")
-  fechaVerificacion      DateTime? @map("fecha_verificacion")
-  estadoFalla            String    @default("REPORTADA") @map("estado_falla") @db.VarChar(30)
-  solucionAplicada       String?   @map("solucion_aplicada")
-  repuestosUtilizados    String?   @map("repuestos_utilizados")
-  costoReparacion        Decimal?  @map("costo_reparacion") @db.Decimal(12, 2)
-  fechaReparacion        DateTime? @map("fecha_reparacion")
-  reparadoPorId          Int?      @map("reparado_por")
-  tiempoParadaHoras      Decimal?  @map("tiempo_parada_horas") @db.Decimal(8, 2)
-  requiereSeguimiento    Boolean   @default(false) @map("requiere_seguimiento")
-  fechaProximoControl    DateTime? @map("fecha_proximo_control") @db.Date
-  fotosUrls              String[]  @map("fotos_urls")
-  documentosUrls         String[]  @map("documentos_urls")
-  observacionesCierre    String?   @map("observaciones_cierre")
-  cerradoPorId           Int?      @map("cerrado_por")
-  fechaCierre            DateTime? @map("fecha_cierre")
-  createdAt              DateTime  @default(now()) @map("created_at")
-  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                   Int       @id @default(autoincrement())
+  unidadId             Int       @map("unidad_id")
+  tipoFallaId          Int       @map("tipo_falla_id")
+  fechaDeteccion       DateTime  @default(now()) @map("fecha_deteccion")
+  kilometrajeDeteccion Decimal?  @map("kilometraje_deteccion") @db.Decimal(10, 2)
+  horometroDeteccion   Decimal?  @map("horometro_deteccion") @db.Decimal(10, 2)
+  titulo               String    @db.VarChar(200)
+  descripcionDetallada String    @map("descripcion_detallada")
+  sintomas             String?
+  causaProbable        String?   @map("causa_probable")
+  prioridad            String    @default("MEDIA") @db.VarChar(20)
+  impactoOperacion     String    @default("NINGUNO") @map("impacto_operacion") @db.VarChar(30)
+  detectadoPorId       Int       @map("detectado_por")
+  verificadoPorId      Int?      @map("verificado_por")
+  fechaVerificacion    DateTime? @map("fecha_verificacion")
+  estadoFalla          String    @default("REPORTADA") @map("estado_falla") @db.VarChar(30)
+  solucionAplicada     String?   @map("solucion_aplicada")
+  repuestosUtilizados  String?   @map("repuestos_utilizados")
+  costoReparacion      Decimal?  @map("costo_reparacion") @db.Decimal(12, 2)
+  fechaReparacion      DateTime? @map("fecha_reparacion")
+  reparadoPorId        Int?      @map("reparado_por")
+  tiempoParadaHoras    Decimal?  @map("tiempo_parada_horas") @db.Decimal(8, 2)
+  requiereSeguimiento  Boolean   @default(false) @map("requiere_seguimiento")
+  fechaProximoControl  DateTime? @map("fecha_proximo_control") @db.Date
+  fotosUrls            String[]  @map("fotos_urls")
+  documentosUrls       String[]  @map("documentos_urls")
+  observacionesCierre  String?   @map("observaciones_cierre")
+  cerradoPorId         Int?      @map("cerrado_por")
+  fechaCierre          DateTime? @map("fecha_cierre")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones
   unidad        Unidad    @relation(fields: [unidadId], references: [id], onDelete: Cascade)
@@ -349,42 +421,42 @@ model FallaUnidad {
 }
 
 model InspeccionUnidad {
-  id                      Int       @id @default(autoincrement())
-  unidadId                Int       @map("unidad_id")
-  tipoInspeccion          String    @map("tipo_inspeccion") @db.VarChar(30)
-  fechaInspeccion         DateTime  @default(now()) @map("fecha_inspeccion")
-  kilometraje             Decimal?  @db.Decimal(10, 2)
-  horometro               Decimal?  @db.Decimal(10, 2)
-  inspectorId             Int       @map("inspector_id")
-  conductorEntranteId     Int?      @map("conductor_entrante_id")
-  conductorSalienteId     Int?      @map("conductor_saliente_id")
-  nivelCombustible        String?   @map("nivel_combustible") @db.VarChar(20)
-  nivelAceite             String?   @map("nivel_aceite") @db.VarChar(20)
-  estadoNeumaticos        String?   @map("estado_neumaticos") @db.VarChar(30)
-  estadoFrenos            String?   @map("estado_frenos") @db.VarChar(30)
-  lucesFuncionamiento     String?   @map("luces_funcionamiento") @db.VarChar(30)
-  limpiezaGeneral         String?   @map("limpieza_general") @db.VarChar(20)
-  documentosVehiculo      String?   @map("documentos_vehiculo") @db.VarChar(20)
-  extintorEstado          String?   @map("extintor_estado") @db.VarChar(20)
-  botiquinEstado          String?   @map("botiquin_estado") @db.VarChar(20)
-  triangulosSeguridad     String?   @map("triangulos_seguridad") @db.VarChar(20)
-  chalecoReflectivo       String?   @map("chaleco_reflectivo") @db.VarChar(20)
-  observacionesGenerales  String?   @map("observaciones_generales")
-  anomaliasDetectadas     String?   @map("anomalias_detectadas")
-  recomendaciones         String?
-  resultado               String    @default("APROBADA") @db.VarChar(20)
-  motivoRechazo           String?   @map("motivo_rechazo")
-  requiereAtencionInmediata Boolean @default(false) @map("requiere_atencion_inmediata")
-  fotosInspeccionUrls     String[]  @map("fotos_inspeccion_urls")
-  firmaInspector          String?   @map("firma_inspector")
-  firmaConductor          String?   @map("firma_conductor")
-  createdAt               DateTime  @default(now()) @map("created_at")
+  id                        Int      @id @default(autoincrement())
+  unidadId                  Int      @map("unidad_id")
+  tipoInspeccion            String   @map("tipo_inspeccion") @db.VarChar(30)
+  fechaInspeccion           DateTime @default(now()) @map("fecha_inspeccion")
+  kilometraje               Decimal? @db.Decimal(10, 2)
+  horometro                 Decimal? @db.Decimal(10, 2)
+  inspectorId               Int      @map("inspector_id")
+  conductorEntranteId       Int?     @map("conductor_entrante_id")
+  conductorSalienteId       Int?     @map("conductor_saliente_id")
+  nivelCombustible          String?  @map("nivel_combustible") @db.VarChar(20)
+  nivelAceite               String?  @map("nivel_aceite") @db.VarChar(20)
+  estadoNeumaticos          String?  @map("estado_neumaticos") @db.VarChar(30)
+  estadoFrenos              String?  @map("estado_frenos") @db.VarChar(30)
+  lucesFuncionamiento       String?  @map("luces_funcionamiento") @db.VarChar(30)
+  limpiezaGeneral           String?  @map("limpieza_general") @db.VarChar(20)
+  documentosVehiculo        String?  @map("documentos_vehiculo") @db.VarChar(20)
+  extintorEstado            String?  @map("extintor_estado") @db.VarChar(20)
+  botiquinEstado            String?  @map("botiquin_estado") @db.VarChar(20)
+  triangulosSeguridad       String?  @map("triangulos_seguridad") @db.VarChar(20)
+  chalecoReflectivo         String?  @map("chaleco_reflectivo") @db.VarChar(20)
+  observacionesGenerales    String?  @map("observaciones_generales")
+  anomaliasDetectadas       String?  @map("anomalias_detectadas")
+  recomendaciones           String?
+  resultado                 String   @default("APROBADA") @db.VarChar(20)
+  motivoRechazo             String?  @map("motivo_rechazo")
+  requiereAtencionInmediata Boolean  @default(false) @map("requiere_atencion_inmediata")
+  fotosInspeccionUrls       String[] @map("fotos_inspeccion_urls")
+  firmaInspector            String?  @map("firma_inspector")
+  firmaConductor            String?  @map("firma_conductor")
+  createdAt                 DateTime @default(now()) @map("created_at")
 
   // Relaciones
-  unidad             Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
-  inspector          Usuario  @relation("InspeccionInspector", fields: [inspectorId], references: [id])
-  conductorEntrante  Usuario? @relation("InspeccionConductorEntrante", fields: [conductorEntranteId], references: [id])
-  conductorSaliente  Usuario? @relation("InspeccionConductorSaliente", fields: [conductorSalienteId], references: [id])
+  unidad               Unidad                     @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  inspector            Usuario                    @relation("InspeccionInspector", fields: [inspectorId], references: [id])
+  conductorEntrante    Usuario?                   @relation("InspeccionConductorEntrante", fields: [conductorEntranteId], references: [id])
+  conductorSaliente    Usuario?                   @relation("InspeccionConductorSaliente", fields: [conductorSalienteId], references: [id])
   historialConductores UnidadConductorHistorial[]
 
   @@map("inspecciones_unidad")
@@ -456,42 +528,339 @@ model UnidadConductorHistorial {
 // ==============================
 
 model Ruta {
-  id                    Int      @id @default(autoincrement())
-  nombre                String   @db.VarChar(100)
-  codigo                String?  @unique @db.VarChar(20)
+  id                    Int        @id @default(autoincrement())
+  nombre                String     @db.VarChar(100)
+  codigo                String?    @unique @db.VarChar(20)
   descripcion           String?
-  origen                String?  @db.VarChar(200)
-  destino               String?  @db.VarChar(200)
-  distanciaKm           Decimal? @map("distancia_km") @db.Decimal(8, 2)
-  tiempoEstimadoMinutos Int?     @map("tiempo_estimado_minutos")
-  activo                Boolean  @default(true)
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+  origen                String?    @db.VarChar(200)
+  destino               String?    @db.VarChar(200)
+  distanciaKm           Decimal?   @map("distancia_km") @db.Decimal(8, 2)
+  tiempoEstimadoMinutos Int?       @map("tiempo_estimado_minutos")
+  estado                EstadoRuta @default(ACTIVA)
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones existentes
-  unidadesAsignadas UnidadRuta[]
+  asignacionesExcepcionales UnidadRuta[] // Asignaciones excepcionales directas
+  tramosItinerario          TramoItinerario[] // Parte de itinerarios compuestos
+  ticketsAbastecimiento     TicketAbastecimiento[]
 
-  // NUEVA RELACIÓN - Sistema de tickets
-  ticketsAbastecimiento TicketAbastecimiento[]
-
+  @@index([estado])
+  @@index([origen, destino])
   @@map("rutas")
 }
 
 model UnidadRuta {
-  id                 Int       @id @default(autoincrement())
-  unidadId           Int       @map("unidad_id")
-  rutaId             Int       @map("ruta_id")
-  fechaAsignacion    DateTime  @default(now()) @map("fecha_asignacion") @db.Date
-  fechaDesasignacion DateTime? @map("fecha_desasignacion") @db.Date
-  activo             Boolean   @default(true)
-  asignadoPorId      Int?      @map("asignado_por")
+  id       Int @id @default(autoincrement())
+  unidadId Int @map("unidad_id")
+  rutaId   Int @map("ruta_id")
+
+  // Temporalidad
+  esUnaVez             Boolean   @default(true) @map("es_una_vez") // True = viaje único
+  fechaAsignacion      DateTime  @default(now()) @map("fecha_asignacion")
+  fechaDesasignacion   DateTime? @map("fecha_desasignacion")
+  fechaViajeEspecifico DateTime? @map("fecha_viaje_especifico") @db.Date // Para viajes programados
+
+  // Justificación
+  motivoAsignacion  String  @map("motivo_asignacion") @db.VarChar(100) // "Emergencia", "Reemplazo", "Carga especial"
+  descripcionMotivo String? @map("descripcion_motivo")
+
+  // Control
+  prioridad            String    @default("NORMAL") @db.VarChar(20) // BAJA, NORMAL, ALTA, URGENTE
+  requiereAutorizacion Boolean   @default(true) @map("requiere_autorizacion")
+  autorizadoPorId      Int?      @map("autorizado_por")
+  fechaAutorizacion    DateTime? @map("fecha_autorizacion")
+
+  // Estado
+  activo        Boolean @default(true)
+  asignadoPorId Int?    @map("asignado_por")
+  observaciones String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones
-  unidad      Unidad  @relation(fields: [unidadId], references: [id], onDelete: Cascade)
-  ruta        Ruta    @relation(fields: [rutaId], references: [id], onDelete: Cascade)
-  asignadoPor Usuario? @relation(fields: [asignadoPorId], references: [id])
+  unidad        Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  ruta          Ruta     @relation(fields: [rutaId], references: [id], onDelete: Cascade)
+  asignadoPor   Usuario? @relation("UnidadRutaAsignador", fields: [asignadoPorId], references: [id])
+  autorizadoPor Usuario? @relation("UnidadRutaAutorizador", fields: [autorizadoPorId], references: [id])
 
+  @@index([unidadId, activo])
+  @@index([rutaId, fechaViajeEspecifico])
+  @@index([esUnaVez, activo])
   @@map("unidades_rutas")
+}
+
+// NUEVO: Itinerario completo (Trujillo → Chiclayo → Piura → Trujillo)
+model Itinerario {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @db.VarChar(150)
+  codigo      String  @unique @db.VarChar(30)
+  descripcion String?
+
+  // Características del itinerario
+  tipoItinerario      String  @db.VarChar(30) // IDA_VUELTA, CIRCULAR, LINEAL
+  distanciaTotal      Decimal @map("distancia_total") @db.Decimal(10, 2)
+  tiempoEstimadoTotal Int     @map("tiempo_estimado_total") // minutos totales
+
+  // Programación habitual
+  diasOperacion         String[] @map("dias_operacion") // ["LUNES", "MARTES", "MIERCOLES"]
+  horaInicioHabitual    String?  @map("hora_inicio_habitual") @db.VarChar(5) // "06:00"
+  duracionEstimadaHoras Decimal? @map("duracion_estimada_horas") @db.Decimal(5, 2)
+
+  // Control
+  estado             EstadoItinerario @default(ACTIVO)
+  requiereSupervisor Boolean          @default(false) @map("requiere_supervisor")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  tramos               TramoItinerario[]
+  asignacionesUnidades UnidadItinerario[]
+  ejecuciones          EjecucionItinerario[]
+  historial            ItinerarioHistorial[]
+
+  @@index([estado, tipoItinerario])
+  @@map("itinerarios")
+}
+
+// NUEVO: Cada tramo del itinerario (Trujillo→Chiclayo es tramo 1, Chiclayo→Piura es tramo 2)
+model TramoItinerario {
+  id           Int @id @default(autoincrement())
+  itinerarioId Int @map("itinerario_id")
+  rutaId       Int @map("ruta_id")
+
+  // Secuencia
+  orden     Int // 1, 2, 3, 4...
+  tipoTramo TipoTramo @default(INTERMEDIO) @map("tipo_tramo")
+
+  // Validación de secuencia - NUEVOS CAMPOS
+  ciudadOrigen  String @map("ciudad_origen") @db.VarChar(100)
+  ciudadDestino String @map("ciudad_destino") @db.VarChar(100)
+
+  // Paradas
+  puntoParada         String? @map("punto_parada") @db.VarChar(200)
+  direccionParada     String? @map("direccion_parada") @db.VarChar(300)
+  coordenadasParada   String? @map("coordenadas_parada") @db.VarChar(50) // "lat,lng"
+  tiempoParadaMinutos Int?    @map("tiempo_parada_minutos")
+  esParadaObligatoria Boolean @default(false) @map("es_parada_obligatoria")
+
+  // Requisitos específicos del tramo
+  requiereInspeccion     Boolean @default(false) @map("requiere_inspeccion")
+  requiereAbastecimiento Boolean @default(false) @map("requiere_abastecimiento")
+  requiereDocumentacion  Boolean @default(false) @map("requiere_documentacion")
+
+  // Tolerancias de desviación
+  toleranciaKm     Decimal? @map("tolerancia_km") @db.Decimal(5, 2) // ±5km por ejemplo
+  toleranciaTiempo Int?     @map("tolerancia_tiempo") // minutos de tolerancia
+
+  // Condiciones especiales
+  horarioPreferido        String? @map("horario_preferido") @db.VarChar(50) // "08:00-10:00"
+  restriccionesClimaticas String? @map("restricciones_climaticas") // "No operar con lluvia intensa"
+  observaciones           String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  itinerario Itinerario      @relation(fields: [itinerarioId], references: [id], onDelete: Cascade)
+  ruta       Ruta            @relation(fields: [rutaId], references: [id])
+  registros  RegistroTramo[]
+
+  @@unique([itinerarioId, orden])
+  @@index([itinerarioId, orden])
+  @@index([ciudadOrigen, ciudadDestino])
+  @@map("tramos_itinerario")
+}
+
+// NUEVO: Asignar itinerario a unidad
+model UnidadItinerario {
+  id           Int @id @default(autoincrement())
+  unidadId     Int @map("unidad_id")
+  itinerarioId Int @map("itinerario_id")
+
+  // Temporalidad
+  fechaAsignacion    DateTime  @default(now()) @map("fecha_asignacion")
+  fechaDesasignacion DateTime? @map("fecha_desasignacion")
+
+  // Frecuencia de operación
+  frecuencia              FrecuenciaItinerario @default(DIARIO)
+  diasEspecificos         String[]             @map("dias_especificos") // ["LUNES", "MIERCOLES", "VIERNES"]
+  horaInicioPersonalizada String?              @map("hora_inicio_personalizada") @db.VarChar(5)
+
+  // Control
+  esPermanente  Boolean @default(true) @map("es_permanente")
+  asignadoPorId Int?    @map("asignado_por")
+  motivoCambio  String? @map("motivo_cambio")
+  observaciones String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  unidad      Unidad     @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  itinerario  Itinerario @relation(fields: [itinerarioId], references: [id], onDelete: Cascade)
+  asignadoPor Usuario?   @relation("UnidadItinerarioAsignador", fields: [asignadoPorId], references: [id])
+
+  @@index([unidadId, fechaDesasignacion])
+  @@index([itinerarioId])
+  @@map("unidades_itinerarios")
+}
+
+// NUEVO: Ejecución concreta de un itinerario (cuando una unidad sale a ruta)
+model EjecucionItinerario {
+  id           Int  @id @default(autoincrement())
+  itinerarioId Int  @map("itinerario_id")
+  unidadId     Int  @map("unidad_id")
+  conductorId  Int  @map("conductor_id")
+  turnoId      Int? @map("turno_id")
+
+  // Programación
+  fechaProgramada    DateTime @map("fecha_programada") @db.Date
+  horaInicioEstimada String?  @map("hora_inicio_estimada") @db.VarChar(5)
+  horaFinEstimada    String?  @map("hora_fin_estimada") @db.VarChar(5)
+
+  // Ejecución real
+  fechaInicio        DateTime? @map("fecha_inicio")
+  fechaFin           DateTime? @map("fecha_fin")
+  kilometrajeInicial Decimal   @map("kilometraje_inicial") @db.Decimal(10, 2)
+  kilometrajeFinal   Decimal?  @map("kilometraje_final") @db.Decimal(10, 2)
+  horometroInicial   Decimal?  @map("horometro_inicial") @db.Decimal(10, 2)
+  horometroFinal     Decimal?  @map("horometro_final") @db.Decimal(10, 2)
+
+  // Consumos y costos
+  combustibleTotal Decimal? @map("combustible_total") @db.Decimal(8, 2)
+  costoTotal       Decimal? @map("costo_total") @db.Decimal(12, 2)
+
+  // Estado y control
+  estado            EstadoEjecucion @default(PROGRAMADO)
+  motivoCancelacion String?         @map("motivo_cancelacion")
+  observaciones     String?
+
+  // Validaciones
+  requiereSupervision Boolean   @default(false) @map("requiere_supervision")
+  supervisadoPorId    Int?      @map("supervisado_por")
+  fechaSupervision    DateTime? @map("fecha_supervision")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  itinerario      Itinerario      @relation(fields: [itinerarioId], references: [id])
+  unidad          Unidad          @relation(fields: [unidadId], references: [id])
+  conductor       Usuario         @relation("EjecucionConductor", fields: [conductorId], references: [id])
+  turno           Turno?          @relation(fields: [turnoId], references: [id])
+  supervisadoPor  Usuario?        @relation("EjecucionSupervisor", fields: [supervisadoPorId], references: [id])
+  registrosTramos RegistroTramo[]
+  alertasDesvio   AlertaDesvio[]
+  ubicacionesGPS  UbicacionGPS[]
+
+  @@index([unidadId, fechaProgramada])
+  @@index([conductorId, fechaProgramada])
+  @@index([estado, fechaProgramada])
+  @@index([itinerarioId, estado])
+  @@map("ejecuciones_itinerario")
+}
+
+// NUEVO: Registro de cada tramo ejecutado
+model RegistroTramo {
+  id          Int @id @default(autoincrement())
+  ejecucionId Int @map("ejecucion_id")
+  tramoId     Int @map("tramo_id")
+
+  // Tiempos
+  horaInicio       DateTime  @map("hora_inicio")
+  horaFin          DateTime? @map("hora_fin")
+  tiempoParadaReal Int?      @map("tiempo_parada_real") // minutos reales de parada
+
+  // Kilometrajes
+  kilometrajeInicio Decimal  @map("kilometraje_inicio") @db.Decimal(10, 2)
+  kilometrajeFin    Decimal? @map("kilometraje_fin") @db.Decimal(10, 2)
+
+  // Consumo
+  combustibleUsado Decimal? @map("combustible_usado") @db.Decimal(8, 2)
+
+  // Estado del tramo
+  estado        EstadoTramo @default(PENDIENTE)
+  motivoOmision String?     @map("motivo_omision") // Si estado = OMITIDO
+
+  // Incidentes
+  tieneIncidentes       Boolean @default(false) @map("tiene_incidentes")
+  descripcionIncidentes String? @map("descripcion_incidentes")
+  gravedadIncidente     String? @map("gravedad_incidente") @db.VarChar(20) // LEVE, MODERADO, GRAVE
+
+  // Condiciones
+  condicionesClimaticas String? @map("condiciones_climaticas") @db.VarChar(50)
+  condicionesTrafico    String? @map("condiciones_trafico") @db.VarChar(50)
+
+  observaciones String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relaciones
+  ejecucion      EjecucionItinerario @relation(fields: [ejecucionId], references: [id], onDelete: Cascade)
+  tramo          TramoItinerario     @relation(fields: [tramoId], references: [id])
+  alertasDesvio  AlertaDesvio[]
+  ubicacionesGPS UbicacionGPS[]
+
+  @@index([ejecucionId, estado])
+  @@index([tramoId])
+  @@map("registros_tramo")
+}
+
+model ItinerarioHistorial {
+  id              Int      @id @default(autoincrement())
+  itinerarioId    Int      @map("itinerario_id")
+  accion          String   @db.VarChar(50)
+  descripcion     String
+  cambiosJson     Json?
+  modificadoPorId Int      @map("modificado_por")
+  fechaCambio     DateTime @default(now()) @map("fecha_cambio")
+
+  itinerario    Itinerario @relation(fields: [itinerarioId], references: [id], onDelete: Cascade)
+  modificadoPor Usuario    @relation("ItinerarioHistorialModificador", fields: [modificadoPorId], references: [id])
+
+  @@index([itinerarioId, fechaCambio])
+  @@map("itinerario_historial")
+}
+
+model AlertaDesvio {
+  id              Int  @id @default(autoincrement())
+  ejecucionId     Int  @map("ejecucion_id")
+  registroTramoId Int? @map("registro_tramo_id")
+
+  // Tipo de desvío
+  tipoDesvio TipoDesvio @map("tipo_desvio")
+
+  // Valores
+  valorEsperado    Decimal? @map("valor_esperado") @db.Decimal(10, 2)
+  valorReal        Decimal? @map("valor_real") @db.Decimal(10, 2)
+  porcentajeDesvio Decimal  @map("porcentaje_desvio") @db.Decimal(5, 2)
+
+  // Clasificación
+  severidad   SeveridadDesvio
+  descripcion String
+
+  // Gestión
+  estado          String    @default("PENDIENTE") @db.VarChar(30)
+  notificado      Boolean   @default(false)
+  fechaDeteccion  DateTime  @default(now()) @map("fecha_deteccion")
+  resolvidoPorId  Int?      @map("resuelto_por")
+  fechaResolucion DateTime? @map("fecha_resolucion")
+  comentarios     String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relaciones
+  ejecucion     EjecucionItinerario @relation(fields: [ejecucionId], references: [id], onDelete: Cascade)
+  registroTramo RegistroTramo?      @relation(fields: [registroTramoId], references: [id])
+  resolvidoPor  Usuario?            @relation("AlertaDesvioResolutor", fields: [resolvidoPorId], references: [id])
+
+  @@index([ejecucionId, severidad])
+  @@index([estado, fechaDeteccion])
+  @@index([tipoDesvio, severidad])
+  @@map("alertas_desvio")
 }
 
 // ==============================
@@ -499,18 +868,19 @@ model UnidadRuta {
 // ==============================
 
 model Turno {
-  id          Int      @id @default(autoincrement())
-  nombre      String   @unique @db.VarChar(30)
-  horaInicio  DateTime @map("hora_inicio") @db.Time
-  horaFin     DateTime @map("hora_fin") @db.Time
-  activo      Boolean  @default(true)
+  id         Int      @id @default(autoincrement())
+  nombre     String   @unique @db.VarChar(30)
+  horaInicio DateTime @map("hora_inicio") @db.Time
+  horaFin    DateTime @map("hora_fin") @db.Time
+  activo     Boolean  @default(true)
 
   // NUEVA RELACIÓN - Sistema de tickets
   ticketsAbastecimiento TicketAbastecimiento[]
+  // NUEVA RELACIÓN
+  ejecucionesItinerario EjecucionItinerario[]
 
   @@map("turnos")
 }
-
 
 // ==============================
 // NUEVO SISTEMA - TICKETS Y DETALLES
@@ -532,83 +902,82 @@ model EstadoTicketAbastecimiento {
 
 // TABLA PRINCIPAL - TICKETS DE SOLICITUD
 model TicketAbastecimiento {
-  id                    Int      @id @default(autoincrement())
-  numeroTicket          String   @unique @map("numero_ticket") @db.VarChar(50)
-  fecha                 DateTime @default(now()) @db.Date
-  hora                  DateTime @default(now()) @db.Time
-  turnoId               Int?     @map("turno_id")
-  unidadId              Int      @map("unidad_id")
-  conductorId           Int      @map("conductor_id")
-  grifoId               Int      @map("grifo_id")
-  rutaId                Int?     @map("ruta_id")
-  kilometrajeActual     Decimal  @map("kilometraje_actual") @db.Decimal(10, 2)
-  kilometrajeAnterior   Decimal? @map("kilometraje_anterior") @db.Decimal(10, 2)
-  precintoNuevo         String   @map("precinto_nuevo") @db.VarChar(50)
-  tipoCombustible       String   @default("DIESEL") @map("tipo_combustible") @db.VarChar(30)
-  cantidad              Decimal  @db.Decimal(10, 3)
-  observacionesSolicitud String? @map("observaciones_solicitud")
-  estadoId              Int      @map("estado_id")
-  solicitadoPorId       Int      @map("solicitado_por")
-  fechaSolicitud        DateTime @default(now()) @map("fecha_solicitud")
-  motivoRechazo         String?  @map("motivo_rechazo")
-  rechazadoPorId        Int?     @map("rechazado_por")
-  fechaRechazo          DateTime? @map("fecha_rechazo")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+  id                     Int       @id @default(autoincrement())
+  numeroTicket           String    @unique @map("numero_ticket") @db.VarChar(50)
+  fecha                  DateTime  @default(now()) @db.Date
+  hora                   DateTime  @default(now()) @db.Time
+  turnoId                Int?      @map("turno_id")
+  unidadId               Int       @map("unidad_id")
+  conductorId            Int       @map("conductor_id")
+  grifoId                Int       @map("grifo_id")
+  rutaId                 Int?      @map("ruta_id")
+  kilometrajeActual      Decimal   @map("kilometraje_actual") @db.Decimal(10, 2)
+  kilometrajeAnterior    Decimal?  @map("kilometraje_anterior") @db.Decimal(10, 2)
+  precintoNuevo          String    @map("precinto_nuevo") @db.VarChar(50)
+  tipoCombustible        String    @default("DIESEL") @map("tipo_combustible") @db.VarChar(30)
+  cantidad               Decimal   @db.Decimal(10, 3)
+  observacionesSolicitud String?   @map("observaciones_solicitud")
+  estadoId               Int       @map("estado_id")
+  solicitadoPorId        Int       @map("solicitado_por")
+  fechaSolicitud         DateTime  @default(now()) @map("fecha_solicitud")
+  motivoRechazo          String?   @map("motivo_rechazo")
+  rechazadoPorId         Int?      @map("rechazado_por")
+  fechaRechazo           DateTime? @map("fecha_rechazo")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones
-  turno                 Turno?                      @relation(fields: [turnoId], references: [id])
-  unidad                Unidad                      @relation("TicketUnidad", fields: [unidadId], references: [id])
-  conductor             Usuario                     @relation("TicketConductor", fields: [conductorId], references: [id])
-  grifo                 Grifo                       @relation(fields: [grifoId], references: [id])
-  ruta                  Ruta?                       @relation(fields: [rutaId], references: [id])
-  estado                EstadoTicketAbastecimiento  @relation(fields: [estadoId], references: [id])
-  solicitadoPor         Usuario                     @relation("TicketSolicitadoPor", fields: [solicitadoPorId], references: [id])
-  rechazadoPor          Usuario?                    @relation("TicketRechazadoPor", fields: [rechazadoPorId], references: [id])
-  
+  turno         Turno?                     @relation(fields: [turnoId], references: [id])
+  unidad        Unidad                     @relation("TicketUnidad", fields: [unidadId], references: [id])
+  conductor     Usuario                    @relation("TicketConductor", fields: [conductorId], references: [id])
+  grifo         Grifo                      @relation(fields: [grifoId], references: [id])
+  ruta          Ruta?                      @relation(fields: [rutaId], references: [id])
+  estado        EstadoTicketAbastecimiento @relation(fields: [estadoId], references: [id])
+  solicitadoPor Usuario                    @relation("TicketSolicitadoPor", fields: [solicitadoPorId], references: [id])
+  rechazadoPor  Usuario?                   @relation("TicketRechazadoPor", fields: [rechazadoPorId], references: [id])
+
   // Relación 1:1 con detalle
   detalleAbastecimiento DetalleAbastecimiento?
   archivos              ArchivoTicket[]
 
-  @@map("tickets_abastecimiento")
   @@index([unidadId, fecha])
   @@index([conductorId, fecha])
   @@index([estadoId, fecha])
   @@index([grifoId])
+  @@map("tickets_abastecimiento")
 }
 
 // TABLA DE DETALLE - SOLO CUANDO SE APRUEBA
 model DetalleAbastecimiento {
-  id                     Int      @id @default(autoincrement())
-  ticketId               Int      @unique @map("ticket_id")
-  horometroActual        Decimal? @map("horometro_actual") @db.Decimal(10, 2)
-  horometroAnterior      Decimal? @map("horometro_anterior") @db.Decimal(10, 2)
-  precintoAnterior       String?  @map("precinto_anterior") @db.VarChar(50)
-  precinto2              String?  @map("precinto_2") @db.VarChar(50)
-  unidadMedida           String   @default("GALONES") @map("unidad_medida") @db.VarChar(10)
-  costoPorUnidad         Decimal  @map("costo_por_unidad") @db.Decimal(10, 4)
-  costoTotal             Decimal  @map("costo_total") @db.Decimal(12, 2)
-  numeroTicketGrifo      String?  @map("numero_ticket_grifo") @db.VarChar(50)
-  valeDiesel             String?  @map("vale_diesel") @db.VarChar(50)
-  numeroFactura          String?  @map("numero_factura") @db.VarChar(50)
-  importeFactura         Decimal? @map("importe_factura") @db.Decimal(12, 2)
-  requerimiento          String?
-  numeroSalidaAlmacen    String?  @map("numero_salida_almacen") @db.VarChar(50)
-  observacionesControlador String? @map("observaciones_controlador")
-  controladorId          Int?     @map("controlador_id")
-  aprobadoPorId          Int      @map("aprobado_por")
-  fechaAprobacion        DateTime @default(now()) @map("fecha_aprobacion")
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at")
+  id                       Int      @id @default(autoincrement())
+  ticketId                 Int      @unique @map("ticket_id")
+  horometroActual          Decimal? @map("horometro_actual") @db.Decimal(10, 2)
+  horometroAnterior        Decimal? @map("horometro_anterior") @db.Decimal(10, 2)
+  precintoAnterior         String?  @map("precinto_anterior") @db.VarChar(50)
+  precinto2                String?  @map("precinto_2") @db.VarChar(50)
+  unidadMedida             String   @default("GALONES") @map("unidad_medida") @db.VarChar(10)
+  costoPorUnidad           Decimal  @map("costo_por_unidad") @db.Decimal(10, 4)
+  costoTotal               Decimal  @map("costo_total") @db.Decimal(12, 2)
+  numeroTicketGrifo        String?  @map("numero_ticket_grifo") @db.VarChar(50)
+  valeDiesel               String?  @map("vale_diesel") @db.VarChar(50)
+  numeroFactura            String?  @map("numero_factura") @db.VarChar(50)
+  importeFactura           Decimal? @map("importe_factura") @db.Decimal(12, 2)
+  requerimiento            String?
+  numeroSalidaAlmacen      String?  @map("numero_salida_almacen") @db.VarChar(50)
+  observacionesControlador String?  @map("observaciones_controlador")
+  controladorId            Int?     @map("controlador_id")
+  aprobadoPorId            Int      @map("aprobado_por")
+  fechaAprobacion          DateTime @default(now()) @map("fecha_aprobacion")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relaciones
-  ticket       TicketAbastecimiento @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  controlador  Usuario?             @relation("DetalleControlador", fields: [controladorId], references: [id])
-  aprobadoPor  Usuario              @relation("DetalleAprobadoPor", fields: [aprobadoPorId], references: [id])
+  ticket      TicketAbastecimiento @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  controlador Usuario?             @relation("DetalleControlador", fields: [controladorId], references: [id])
+  aprobadoPor Usuario              @relation("DetalleAprobadoPor", fields: [aprobadoPorId], references: [id])
 
   @@map("detalles_abastecimiento")
 }
-
 
 // ==============================
 // ALERTAS Y NOTIFICACIONES
@@ -628,23 +997,23 @@ model TipoAlerta {
 }
 
 model Alerta {
-  id                Int       @id @default(autoincrement())
-  tipoAlertaId      Int       @map("tipo_alerta_id")
-  unidadId          Int?      @map("unidad_id")
-  conductorId       Int?      @map("conductor_id")
-  fallaId           Int?      @map("falla_id")
-  mantenimientoId   Int?      @map("mantenimiento_id")
-  titulo            String    @db.VarChar(200)
-  mensaje           String
-  prioridad         String    @default("MEDIA") @db.VarChar(20)
-  estado            String    @default("PENDIENTE") @db.VarChar(20)
-  fechaAlerta       DateTime  @default(now()) @map("fecha_alerta")
-  fechaResolucion   DateTime? @map("fecha_resolucion")
-  resueltoPorId     Int?      @map("resuelto_por")
-  notasResolucion   String?   @map("notas_resolucion")
-  esRecurrente      Boolean   @default(false) @map("es_recurrente")
-  frecuenciaDias    Int?      @map("frecuencia_dias")
-  proximaAlerta     DateTime? @map("proxima_alerta") @db.Date
+  id              Int       @id @default(autoincrement())
+  tipoAlertaId    Int       @map("tipo_alerta_id")
+  unidadId        Int?      @map("unidad_id")
+  conductorId     Int?      @map("conductor_id")
+  fallaId         Int?      @map("falla_id")
+  mantenimientoId Int?      @map("mantenimiento_id")
+  titulo          String    @db.VarChar(200)
+  mensaje         String
+  prioridad       String    @default("MEDIA") @db.VarChar(20)
+  estado          String    @default("PENDIENTE") @db.VarChar(20)
+  fechaAlerta     DateTime  @default(now()) @map("fecha_alerta")
+  fechaResolucion DateTime? @map("fecha_resolucion")
+  resueltoPorId   Int?      @map("resuelto_por")
+  notasResolucion String?   @map("notas_resolucion")
+  esRecurrente    Boolean   @default(false) @map("es_recurrente")
+  frecuenciaDias  Int?      @map("frecuencia_dias")
+  proximaAlerta   DateTime? @map("proxima_alerta") @db.Date
 
   // Relaciones
   tipoAlerta    TipoAlerta           @relation(fields: [tipoAlertaId], references: [id])
@@ -675,25 +1044,25 @@ model TipoArchivoTicket {
 }
 
 model ArchivoTicket {
-  id                Int      @id @default(autoincrement())
-  ticketId          Int      @map("ticket_id")
-  tipoArchivoId     Int      @map("tipo_archivo_id")
-  nombreArchivo     String   @map("nombre_archivo") @db.VarChar(255)
-  nombreOriginal    String   @map("nombre_original") @db.VarChar(255)
-  url               String
-  urlThumbnail      String?  @map("url_thumbnail") // Miniatura para imágenes
-  rutaAlmacenamiento String  @map("ruta_almacenamiento")
-  tipoMime          String   @map("tipo_mime") @db.VarChar(100)
-  tamanoBytes       BigInt   @map("tamano_bytes")
-  extension         String   @db.VarChar(10)
-  metadatos         Json?    // Información adicional como dimensiones, duración, etc.
-  descripcion       String?  // Descripción o comentario del archivo
-  orden             Int      @default(0) // Para ordenar múltiples fotos
-  esPrincipal       Boolean  @default(false) @map("es_principal") // Marcar foto principal
-  subidoPorId       Int      @map("subido_por")
-  fechaSubida       DateTime @default(now()) @map("fecha_subida")
-  activo            Boolean  @default(true)
-  createdAt         DateTime @default(now()) @map("created_at")
+  id                 Int      @id @default(autoincrement())
+  ticketId           Int      @map("ticket_id")
+  tipoArchivoId      Int      @map("tipo_archivo_id")
+  nombreArchivo      String   @map("nombre_archivo") @db.VarChar(255)
+  nombreOriginal     String   @map("nombre_original") @db.VarChar(255)
+  url                String
+  urlThumbnail       String?  @map("url_thumbnail") // Miniatura para imágenes
+  rutaAlmacenamiento String   @map("ruta_almacenamiento")
+  tipoMime           String   @map("tipo_mime") @db.VarChar(100)
+  tamanoBytes        BigInt   @map("tamano_bytes")
+  extension          String   @db.VarChar(10)
+  metadatos          Json? // Información adicional como dimensiones, duración, etc.
+  descripcion        String? // Descripción o comentario del archivo
+  orden              Int      @default(0) // Para ordenar múltiples fotos
+  esPrincipal        Boolean  @default(false) @map("es_principal") // Marcar foto principal
+  subidoPorId        Int      @map("subido_por")
+  fechaSubida        DateTime @default(now()) @map("fecha_subida")
+  activo             Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at")
 
   // Relaciones
   ticket      TicketAbastecimiento @relation(fields: [ticketId], references: [id], onDelete: Cascade)
@@ -711,74 +1080,74 @@ model ArchivoTicket {
 // ==============================
 
 model TipoEvento {
-  id               Int     @id @default(autoincrement())
-  nombre           String  @unique @db.VarChar(50)
-  descripcion      String?
-  categoria        String  @db.VarChar(30) // ACCIDENTE, INFRACCION, ROBO, REVISION, MANTENIMIENTO
-  requiereCambioEstado Boolean @default(false) @map("requiere_cambio_estado")
-  prioridad        String  @default("MEDIA") @db.VarChar(20)
-  color            String? @db.VarChar(7)
-  activo           Boolean @default(true)
-  createdAt        DateTime @default(now()) @map("created_at")
-  
+  id                   Int      @id @default(autoincrement())
+  nombre               String   @unique @db.VarChar(50)
+  descripcion          String?
+  categoria            String   @db.VarChar(30) // ACCIDENTE, INFRACCION, ROBO, REVISION, MANTENIMIENTO
+  requiereCambioEstado Boolean  @default(false) @map("requiere_cambio_estado")
+  prioridad            String   @default("MEDIA") @db.VarChar(20)
+  color                String?  @db.VarChar(7)
+  activo               Boolean  @default(true)
+  createdAt            DateTime @default(now()) @map("created_at")
+
   eventos EventoUnidad[]
-  
+
   @@map("tipos_evento")
 }
 
 model EventoUnidad {
-  id                    Int       @id @default(autoincrement())
-  unidadId              Int       @map("unidad_id")
-  tipoEventoId          Int       @map("tipo_evento_id")
-  fechaEvento           DateTime  @default(now()) @map("fecha_evento")
-  horaEvento            String?   @map("hora_evento") @db.VarChar(5) // "14:30"
-  ubicacion             String?   @db.VarChar(200)
-  titulo                String    @db.VarChar(200)
-  descripcion           String
-  gravedad              String    @default("LEVE") @db.VarChar(20) // LEVE, MODERADO, GRAVE, CRITICO
-  
+  id           Int      @id @default(autoincrement())
+  unidadId     Int      @map("unidad_id")
+  tipoEventoId Int      @map("tipo_evento_id")
+  fechaEvento  DateTime @default(now()) @map("fecha_evento")
+  horaEvento   String?  @map("hora_evento") @db.VarChar(5) // "14:30"
+  ubicacion    String?  @db.VarChar(200)
+  titulo       String   @db.VarChar(200)
+  descripcion  String
+  gravedad     String   @default("LEVE") @db.VarChar(20) // LEVE, MODERADO, GRAVE, CRITICO
+
   // Si involucra otras unidades
-  unidadInvolucradaId   Int?      @map("unidad_involucrada_id")
-  
+  unidadInvolucradaId Int? @map("unidad_involucrada_id")
+
   // Responsables
-  conductorResponsableId Int?     @map("conductor_responsable_id")
-  reportadoPorId        Int       @map("reportado_por")
-  
+  conductorResponsableId Int? @map("conductor_responsable_id")
+  reportadoPorId         Int  @map("reportado_por")
+
   // Consecuencias
-  dañosMateriales       Boolean   @default(false) @map("danos_materiales")
-  personasAfectadas     Boolean   @default(false) @map("personas_afectadas")
-  generoCambioEstado    Boolean   @default(false) @map("genero_cambio_estado")
-  historialEstadoId     Int?      @map("historial_estado_id")
-  
+  dañosMateriales   Boolean @default(false) @map("danos_materiales")
+  personasAfectadas  Boolean @default(false) @map("personas_afectadas")
+  generoCambioEstado Boolean @default(false) @map("genero_cambio_estado")
+  historialEstadoId  Int?    @map("historial_estado_id")
+
   // Detalles económicos/legales
-  costoEstimado         Decimal?  @map("costo_estimado") @db.Decimal(12, 2)
-  numeroPolicial        String?   @map("numero_policial") @db.VarChar(50)
+  costoEstimado          Decimal? @map("costo_estimado") @db.Decimal(12, 2)
+  numeroPolicial         String?  @map("numero_policial") @db.VarChar(50)
   aseguradoraInvolucrada String?  @map("aseguradora_involucrada") @db.VarChar(100)
-  numeroSiniestro       String?   @map("numero_siniestro") @db.VarChar(50)
-  
+  numeroSiniestro        String?  @map("numero_siniestro") @db.VarChar(50)
+
   // Seguimiento
-  estadoResolucion      String    @default("PENDIENTE") @db.VarChar(30)
-  fechaResolucion       DateTime? @map("fecha_resolucion")
-  resolucion            String?
-  observaciones         String?
-  
-  requiereSeguimiento   Boolean   @default(false) @map("requiere_seguimiento")
-  fechaSeguimiento      DateTime? @map("fecha_seguimiento")
-  
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
-  
+  estadoResolucion String    @default("PENDIENTE") @db.VarChar(30)
+  fechaResolucion  DateTime? @map("fecha_resolucion")
+  resolucion       String?
+  observaciones    String?
+
+  requiereSeguimiento Boolean   @default(false) @map("requiere_seguimiento")
+  fechaSeguimiento    DateTime? @map("fecha_seguimiento")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relaciones
-  unidad                Unidad                    @relation("EventosUnidad", fields: [unidadId], references: [id], onDelete: Cascade)
-  tipoEvento            TipoEvento                @relation(fields: [tipoEventoId], references: [id])
-  unidadInvolucrada     Unidad?                   @relation("EventosInvolucrados", fields: [unidadInvolucradaId], references: [id])
-  conductorResponsable  Usuario?                  @relation("EventoConductor", fields: [conductorResponsableId], references: [id])
-  reportadoPor          Usuario                   @relation("EventoReportador", fields: [reportadoPorId], references: [id])
-  historialEstado       HistorialEstadoUnidad?    @relation(fields: [historialEstadoId], references: [id])
-  
+  unidad               Unidad                 @relation("EventosUnidad", fields: [unidadId], references: [id], onDelete: Cascade)
+  tipoEvento           TipoEvento             @relation(fields: [tipoEventoId], references: [id])
+  unidadInvolucrada    Unidad?                @relation("EventosInvolucrados", fields: [unidadInvolucradaId], references: [id])
+  conductorResponsable Usuario?               @relation("EventoConductor", fields: [conductorResponsableId], references: [id])
+  reportadoPor         Usuario                @relation("EventoReportador", fields: [reportadoPorId], references: [id])
+  historialEstado      HistorialEstadoUnidad? @relation(fields: [historialEstadoId], references: [id])
+
   // Archivos vinculados
-  archivos              ArchivoEvento[]
-  
+  archivos ArchivoEvento[]
+
   @@index([unidadId, fechaEvento])
   @@index([tipoEventoId])
   @@index([estadoResolucion])
@@ -795,43 +1164,84 @@ model TipoArchivoEvento {
   tamanioMaxMB          Int      @default(10) @map("tamanio_max_mb")
   activo                Boolean  @default(true)
   createdAt             DateTime @default(now()) @map("created_at")
-  
+
   archivos ArchivoEvento[]
-  
+
   @@map("tipos_archivo_evento")
 }
 
 model ArchivoEvento {
-  id                 Int       @id @default(autoincrement())
-  eventoId           Int       @map("evento_id")
-  tipoArchivoId      Int       @map("tipo_archivo_id")
-  nombreOriginal     String    @map("nombre_original") @db.VarChar(255)
-  nombreAlmacenado   String    @map("nombre_almacenado") @db.VarChar(255)
-  urlPublica         String    @map("url_publica")
-  urlThumbnail       String?   @map("url_thumbnail")
-  rutaAlmacenamiento String    @map("ruta_almacenamiento")
-  tipoMime           String    @map("tipo_mime") @db.VarChar(100)
-  tamanoBytes        BigInt    @map("tamano_bytes")
-  extension          String    @db.VarChar(10)
-  metadatos          Json?     // Dimensiones, duración, GPS, etc.
-  descripcion        String?   // Descripción del archivo
-  orden              Int       @default(0) // Para ordenar
-  esPrincipal        Boolean   @default(false) @map("es_principal")
-  subidoPorId        Int       @map("subido_por")
-  fechaSubida        DateTime  @default(now()) @map("fecha_subida")
-  activo             Boolean   @default(true)
-  createdAt          DateTime  @default(now()) @map("created_at")
-  
+  id                 Int      @id @default(autoincrement())
+  eventoId           Int      @map("evento_id")
+  tipoArchivoId      Int      @map("tipo_archivo_id")
+  nombreOriginal     String   @map("nombre_original") @db.VarChar(255)
+  nombreAlmacenado   String   @map("nombre_almacenado") @db.VarChar(255)
+  urlPublica         String   @map("url_publica")
+  urlThumbnail       String?  @map("url_thumbnail")
+  rutaAlmacenamiento String   @map("ruta_almacenamiento")
+  tipoMime           String   @map("tipo_mime") @db.VarChar(100)
+  tamanoBytes        BigInt   @map("tamano_bytes")
+  extension          String   @db.VarChar(10)
+  metadatos          Json? // Dimensiones, duración, GPS, etc.
+  descripcion        String? // Descripción del archivo
+  orden              Int      @default(0) // Para ordenar
+  esPrincipal        Boolean  @default(false) @map("es_principal")
+  subidoPorId        Int      @map("subido_por")
+  fechaSubida        DateTime @default(now()) @map("fecha_subida")
+  activo             Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at")
+
   // Relaciones
-  evento        EventoUnidad      @relation(fields: [eventoId], references: [id], onDelete: Cascade)
-  tipoArchivo   TipoArchivoEvento @relation(fields: [tipoArchivoId], references: [id])
-  subidoPor     Usuario           @relation("ArchivoEventoSubidoPor", fields: [subidoPorId], references: [id])
-  
+  evento      EventoUnidad      @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  tipoArchivo TipoArchivoEvento @relation(fields: [tipoArchivoId], references: [id])
+  subidoPor   Usuario           @relation("ArchivoEventoSubidoPor", fields: [subidoPorId], references: [id])
+
   @@index([eventoId])
   @@index([tipoArchivoId])
   @@map("archivos_evento")
 }
 
+// ==============================
+// SISTEMA DE RASTREO GPS
+// ==============================
+
+model UbicacionGPS {
+  id              Int  @id @default(autoincrement())
+  unidadId        Int  @map("unidad_id")
+  ejecucionId     Int? @map("ejecucion_id")
+  registroTramoId Int? @map("registro_tramo_id")
+
+  // Coordenadas
+  latitud   Decimal  @db.Decimal(10, 8)
+  longitud  Decimal  @db.Decimal(11, 8)
+  altitud   Decimal? @db.Decimal(8, 2)
+  precision Decimal? @db.Decimal(6, 2) // Precisión en metros
+
+  // Datos del vehículo
+  velocidad   Decimal? @db.Decimal(5, 2) // km/h
+  rumbo       Decimal? @db.Decimal(5, 2) // 0-360 grados
+  kilometraje Decimal? @db.Decimal(10, 2)
+
+  // Timestamp
+  fechaHora DateTime @default(now()) @map("fecha_hora")
+
+  // Metadata del dispositivo
+  proveedor String? @db.VarChar(50) // "GPS_DEVICE", "MOBILE_APP"
+  bateria   Int? // Porcentaje batería
+  señalGPS String? @map("senal_gps") @db.VarChar(20) // "EXCELENTE", "BUENA", "REGULAR", "POBRE"
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relaciones
+  unidad        Unidad               @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  ejecucion     EjecucionItinerario? @relation(fields: [ejecucionId], references: [id], onDelete: SetNull)
+  registroTramo RegistroTramo?       @relation(fields: [registroTramoId], references: [id], onDelete: SetNull)
+
+  @@index([unidadId, fechaHora])
+  @@index([ejecucionId, fechaHora])
+  @@index([fechaHora]) // Para consultas de rango temporal
+  @@map("ubicaciones_gps")
+}
 
 // ==============================
 // ÍNDICES PARA OPTIMIZACIÓN

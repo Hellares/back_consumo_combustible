@@ -1,6 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
 
+class ZonaBasicInfo {
+  @ApiProperty({ description: 'ID de la zona', example: 1 })
+  @Expose()
+  id: number;
+
+  @ApiProperty({ description: 'Nombre de la zona', example: 'Zona Norte' })
+  @Expose()
+  nombre: string;
+
+  @ApiPropertyOptional({ description: 'Código de la zona', example: 'ZONA01' })
+  @Expose()
+  codigo?: string;
+}
+
 class SedeBasicInfo {
   @ApiProperty({ description: 'ID de la sede', example: 1 })
   @Expose()
@@ -14,14 +28,10 @@ class SedeBasicInfo {
   @Expose()
   codigo?: string;
 
-  @ApiProperty({ description: 'Información de la zona' })
+  @ApiProperty({ description: 'Información de la zona', type: ZonaBasicInfo })
   @Expose()
-  @Type(() => Object)
-  zona: {
-    id: number;
-    nombre: string;
-    codigo?: string;
-  };
+  @Type(() => ZonaBasicInfo)  // ✅ Cambiado de Object a ZonaBasicInfo
+  zona: ZonaBasicInfo;
 }
 
 export class GrifoResponseDto {
@@ -68,15 +78,15 @@ export class GrifoResponseDto {
   telefono?: string;
 
   @ApiPropertyOptional({
-    description: 'Horario de apertura',
-    example: '06:00:00'
+    description: 'Horario de apertura (formato HH:mm)',
+    example: '08:00'
   })
   @Expose()
   horarioApertura?: string;
 
   @ApiPropertyOptional({
-    description: 'Horario de cierre',
-    example: '22:00:00'
+    description: 'Horario de cierre (formato HH:mm)',
+    example: '20:00'
   })
   @Expose()
   horarioCierre?: string;
@@ -111,11 +121,11 @@ export class GrifoResponseDto {
   sede?: SedeBasicInfo;
 
   @ApiPropertyOptional({
-    description: 'Número de abastecimientos realizados en este grifo',
+    description: 'Número de tickets de abastecimiento realizados en este grifo',
     example: 150
   })
   @Expose()
-  abastecimientosCount?: number;
+  ticketsAbastecimientoCount?: number;  // ✅ Cambiado nombre
 
   @ApiPropertyOptional({
     description: 'Indica si está operativo (abierto según horario)',

@@ -753,7 +753,7 @@ export class TicketsAbastecimientoService {
         where: { id: createDto.turnoId, activo: true }
       }) : null,
       createDto.rutaId ? this.prisma.ruta.findFirst({
-        where: { id: createDto.rutaId, activo: true }
+        where: { id: createDto.rutaId, estado: 'ACTIVA' }
       }) : null
     ]);
 
