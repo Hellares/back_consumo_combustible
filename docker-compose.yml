@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # Aplicación NestJS
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nestjs-combustible-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      APP_PORT: 3000
+      
+      # Database - Conexión a tu PostgreSQL existente
+      DATABASE_URL: "postgresql://postgres:jtorres159.@86.48.26.221:5432/control_combustible_v4?connection_limit=50&pool_timeout=20&connect_timeout=60&statement_timeout=30000"
+      
+      # JWT Configuration
+      JWT_SECRET: "tu-jwt-secret-muy-seguro-aqui-cambiar-en-produccion"
+      JWT_EXPIRES_IN: "1d"
+      
+      # Default Role
+      DEFAULT_ROLE_NAME: "USER"
+      
+      # CORS Configuration - syncronize.net.pe
+      CORS_ORIGIN: "http://localhost:3000,http://localhost:8080,https://syncronize.net.pe,https://www.syncronize.net.pe,https://api.syncronize.net.pe"
+      
+      # Cloudinary Configuration
+      CLOUDINARY_CLOUD_NAME: "doglf2gsy"
+      CLOUDINARY_API_KEY: "485335513153247"
+      CLOUDINARY_API_SECRET: "rVefITbGKMyrl9G2pmliO-uaAko"
+    
+    networks:
+      - app-network
+    
+    volumes:
+      - ./uploads:/app/uploads
+
+networks:
+  app-network:
+    driver: bridge
