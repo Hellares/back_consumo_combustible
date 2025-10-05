@@ -13,7 +13,6 @@ import { PrismaService } from '../database/prisma.service';
 import { plainToInstance } from 'class-transformer';
 
 import { QueryTicketDto } from './dto/query-ticket.dto';
-import { RechazarTicketDto } from './dto/rechazar-ticket.dto';
 import { TicketAbastecimientoResponseDto } from './dto/ticket-response.dto';
 import { CreateTicketAbastecimientoDto } from './dto/create-tickets_abastecimiento.dto';
 import { UpdateTicketAbastecimientoDto } from './dto/update-tickets_abastecimiento.dto';
@@ -575,7 +574,7 @@ export class TicketsAbastecimientoService {
    */
   async rechazar(
     id: number,
-    rechazarDto: RechazarTicketDto,
+    motivoRechazo: string,
     rechazadoPorId: number
   ): Promise<TicketAbastecimientoResponseDto> {
     const ticket = await this.prisma.ticketAbastecimiento.findUnique({
@@ -607,7 +606,7 @@ export class TicketsAbastecimientoService {
       where: { id },
       data: {
         estadoId: estadoRechazado.id,
-        motivoRechazo: rechazarDto.motivoRechazo,
+        motivoRechazo,
         rechazadoPorId,
         fechaRechazo: new Date(),
         updatedAt: new Date()
@@ -961,6 +960,87 @@ export class TicketsAbastecimientoService {
     };
   }
 
+  async findByEstado(estadoNombre: string,queryDto?: QueryTicketDto) {
+    const { page = 1, limit = 10, search, orderBy = 'fecha', orderDirection = 'desc' } = queryDto || {};
+    
+    const pageSize = Math.min(limit, 100);
+    const offset = (page - 1) * pageSize;
+  
+    // Verificar que el estado existe
+    const estado = await this.prisma.estadoTicketAbastecimiento.findFirst({
+      where: { nombre: estadoNombre.toUpperCase() }
+    });
+  
+    if (!estado) {
+      throw new NotFoundException(`Estado "${estadoNombre}" no encontrado`);
+    }
+  
+    // Construir condiciones WHERE
+    const whereConditions: any = {
+      estadoId: estado.id,
+      AND: []
+    };
+  
+    // Filtro de búsqueda general
+    if (search) {
+      whereConditions.AND.push({
+        OR: [
+          { numeroTicket: { contains: search, mode: 'insensitive' } },
+          { unidad: { placa: { contains: search, mode: 'insensitive' } } },
+          { conductor: { nombres: { contains: search, mode: 'insensitive' } } },
+          { conductor: { apellidos: { contains: search, mode: 'insensitive' } } },
+          { grifo: { nombre: { contains: search, mode: 'insensitive' } } }
+        ]
+      });
+    }
+  
+    // Limpiar AND si está vacío
+    if (whereConditions.AND.length === 0) {
+      delete whereConditions.AND;
+    }
+  
+    // Obtener tickets y total
+    const [tickets, total] = await Promise.all([
+      this.prisma.ticketAbastecimiento.findMany({
+        where: whereConditions,
+        include: this.getIncludeOptions(),
+        orderBy: { [orderBy]: orderDirection },
+        skip: offset,
+        take: pageSize
+      }),
+      this.prisma.ticketAbastecimiento.count({ where: whereConditions })
+    ]);
+  
+    const data = tickets.map(ticket => this.transformToResponseDto(ticket));
+  
+    // Calcular metadata
+    const totalPages = Math.ceil(total / pageSize);
+    const hasNext = page < totalPages;
+    const hasPrevious = page > 1;
+    const nextOffset = hasNext ? page * pageSize : null;
+    const prevOffset = hasPrevious ? (page - 2) * pageSize : null;
+  
+    return {
+      success: true,
+      message: `Tickets con estado "${estadoNombre}" obtenidos exitosamente`,
+      data: {
+        data,
+        meta: {
+          total,
+          page,
+          pageSize,
+          totalPages,
+          offset,
+          limit: pageSize,
+          nextOffset,
+          prevOffset,
+          hasNext,
+          hasPrevious
+        }
+      }
+    };
+  }
+
   /**
    * Transformar objeto de BD a DTO de respuesta
    */
@@ -1044,4 +1124,6 @@ export class TicketsAbastecimientoService {
       updatedAt: ticket.updatedAt
     } as TicketAbastecimientoResponseDto;
   }
+
+  
 }

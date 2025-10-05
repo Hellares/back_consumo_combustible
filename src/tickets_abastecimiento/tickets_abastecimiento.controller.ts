@@ -16,7 +16,8 @@ import {
   HttpStatus,
   HttpCode,
   Request,
-  ForbiddenException
+  ForbiddenException,
+  BadRequestException
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -36,7 +37,6 @@ import {
 
 import { TicketsAbastecimientoService } from './tickets_abastecimiento.service';
 import { QueryTicketDto } from './dto/query-ticket.dto';
-import { RechazarTicketDto } from './dto/rechazar-ticket.dto';
 import { TicketAbastecimientoResponseDto } from './dto/ticket-response.dto';
 
 // Guards de autenticación y permisos
@@ -45,9 +45,12 @@ import { JwtPermissionsGuard } from '../auth/jwt/jwt-permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { CreateTicketAbastecimientoDto } from './dto/create-tickets_abastecimiento.dto';
 import { UpdateTicketAbastecimientoDto } from './dto/update-tickets_abastecimiento.dto';
-import { HasRoles } from 'src/auth/jwt/has-roles';
-import { JwtRole } from 'src/auth/jwt/jwt-role';
-import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
+import { JwtRolesGuard } from '@/auth/jwt/jwt-roles.guard';
+import { HasRoles } from '@/auth/jwt/has-roles';
+import { JwtRole } from '@/auth/jwt/jwt-role';
+// import { HasRoles } from 'src/auth/jwt/has-roles';
+// import { JwtRole } from 'src/auth/jwt/jwt-role';
+// import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
 
 @ApiTags('Tickets de Abastecimiento')
 @ApiBearerAuth()
@@ -391,8 +394,8 @@ export class TicketsAbastecimientoController {
   }
 
   @Patch(':id/rechazar')
-  // @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'tickets_abastecimiento', actions: ['approve'] })
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   @ApiOperation({
     summary: 'Rechazar ticket de abastecimiento',
     description: 'Rechaza un ticket cambiando su estado a RECHAZADO con motivo obligatorio'
@@ -414,11 +417,18 @@ export class TicketsAbastecimientoController {
   })
   async rechazar(
     @Param('id', ParseIntPipe) id: number,
-    @Body() rechazarDto: RechazarTicketDto,
+    @Body('motivoRechazo') motivoRechazo: string,
     @Request() req: any
   ): Promise<TicketAbastecimientoResponseDto> {
+    if (!motivoRechazo || motivoRechazo.trim().length === 0) {
+      throw new BadRequestException('El motivo del rechazo es obligatorio');
+    }
+    if (motivoRechazo.length > 500) {
+      throw new BadRequestException('El motivo no puede exceder 500 caracteres');
+    }
     const rechazadoPorId = req.user.id;
-    return this.ticketsService.rechazar(id, rechazarDto, rechazadoPorId);
+
+    return this.ticketsService.rechazar(id, motivoRechazo.trim(), rechazadoPorId);
   }
 
   @Delete(':id')
@@ -526,37 +536,39 @@ export class TicketsAbastecimientoController {
     }
   })
   async aprobarLote(
-    @Body() body: any,
-    @Request() req: any
+    @Body('ids') ids: number[],
+  @Request() req: any
   ) {
     const aprobadoPorId = req.user.id;
     // Aceptar tanto ticketIds como ids para mayor flexibilidad
-    const ticketIds = body.ticketIds || body.ids;
+    
 
-    if (!Array.isArray(ticketIds) || ticketIds.length === 0) {
-      throw new ForbiddenException('Debe proporcionar al menos un ID de ticket');
-    }
+    // Validaciones
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new BadRequestException('Debe proporcionar al menos un ID de ticket');
+  }
 
-    if (ticketIds.length > 20) {
-      throw new ForbiddenException('No se pueden aprobar más de 20 tickets a la vez');
-    }
-
+  if (ids.length > 20) {
+    throw new BadRequestException('No se pueden aprobar más de 20 tickets a la vez');
+  }
     const resultados = {
-      aprobados: 0,
-      errores: []
-    };
+    exitosos: 0,
+    fallidos: 0,
+    errores: []
+  };
 
-    for (const ticketId of ticketIds) {
-      try {
-        await this.ticketsService.aprobar(ticketId, aprobadoPorId);
-        resultados.aprobados++;
-      } catch (error) {
-        resultados.errores.push({
-          ticketId,
-          error: error.message
-        });
-      }
+    for (const ticketId of ids) {
+    try {
+      await this.ticketsService.aprobar(ticketId, aprobadoPorId);
+      resultados.exitosos++;
+    } catch (error) {
+      resultados.fallidos++;
+      resultados.errores.push({
+        ticketId,
+        error: error.message
+      });
     }
+  }
 
     return resultados;
   }
@@ -610,5 +622,13 @@ export class TicketsAbastecimientoController {
     );
 
     return misTickets;
+  }
+
+  @Get('estado/:estadoNombre')
+  async findByEstado(
+  @Param('estadoNombre') estadoNombre: string,
+  @Query() queryDto: QueryTicketDto
+  ) {
+    return this.ticketsService.findByEstado(estadoNombre, queryDto);
   }
 }

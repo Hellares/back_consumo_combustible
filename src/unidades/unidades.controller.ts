@@ -40,9 +40,12 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { JwtPermissionsGuard } from '../auth/jwt/jwt-permissions.guard';
 import { CreateUnidadDto } from './dto/create-unidade.dto';
 import { UpdateUnidadDto } from './dto/update-unidade.dto';
-import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
-import { HasRoles } from 'src/auth/jwt/has-roles';
-import { JwtRole } from 'src/auth/jwt/jwt-role';
+import { JwtRole } from '@/auth/jwt/jwt-role';
+import { JwtRolesGuard } from '@/auth/jwt/jwt-roles.guard';
+import { HasRoles } from '@/auth/jwt/has-roles';
+// import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
+// import { HasRoles } from 'src/auth/jwt/has-roles';
+// import { JwtRole } from 'src/auth/jwt/jwt-role';
 
 @ApiTags('Unidades')
 @ApiBearerAuth()

@@ -1,3 +1,4 @@
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -31,9 +32,9 @@ async function bootstrap() {
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
-      // transformOptions: {
-      //   enableImplicitConversion: true,
-      // },
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 

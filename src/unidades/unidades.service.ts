@@ -3,9 +3,10 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { QueryUnidadDto } from './dto/query-unidad.dto';
 import { UnidadResponseDto } from './dto/unidad-response.dto';
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from 'src/database/prisma.service';
+// import { PrismaService } from 'src/database/prisma.service';
 import { CreateUnidadDto } from './dto/create-unidade.dto';
 import { UpdateUnidadDto } from './dto/update-unidade.dto';
+import { PrismaService } from '@/database/prisma.service';
 
 @Injectable()
 export class UnidadesService {
