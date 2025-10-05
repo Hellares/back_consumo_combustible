@@ -14,7 +14,8 @@ import {
   UseGuards,
   ParseIntPipe,
   HttpStatus,
-  HttpCode
+  HttpCode,
+  DefaultValuePipe
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -206,7 +207,7 @@ export class UnidadesController {
   }
 
   @Get('sin-conductor')
-  @UseGuards(JwtPermissionsGuard)
+  // @UseGuards(JwtPermissionsGuard)
   // @Permissions({ resource: 'unidades', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener unidades sin conductor',
@@ -221,23 +222,57 @@ export class UnidadesController {
   }
 
   @Get('zona/:zonaId')
-  @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'unidades', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener unidades por zona',
-    description: 'Obtiene todas las unidades activas de una zona específica'
+    description: 'Obtiene todas las unidades activas de una zona específica con paginación'
   })
   @ApiParam({
     name: 'zonaId',
     description: 'ID único de la zona',
     example: 1
   })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Elementos por página', example: 10 })
   @ApiOkResponse({
     description: 'Unidades de la zona obtenidas exitosamente',
-    type: [UnidadResponseDto]
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Unidades de la zona obtenidas exitosamente' },
+        data: {
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/UnidadResponseDto' }
+            },
+            meta: {
+              type: 'object',
+              properties: {
+                total: { type: 'number', example: 15 },
+                page: { type: 'number', example: 1 },
+                pageSize: { type: 'number', example: 10 },
+                totalPages: { type: 'number', example: 2 },
+                offset: { type: 'number', example: 0 },
+                limit: { type: 'number', example: 10 },
+                nextOffset: { type: 'number', example: 10, nullable: true },
+                prevOffset: { type: 'number', example: null, nullable: true },
+                hasNext: { type: 'boolean', example: true },
+                hasPrevious: { type: 'boolean', example: false }
+              }
+            }
+          }
+        }
+      }
+    }
   })
-  async findByZona(@Param('zonaId', ParseIntPipe) zonaId: number): Promise<UnidadResponseDto[]> {
-    return this.unidadesService.findByZona(zonaId);
+  async findByZona(
+    @Param('zonaId', ParseIntPipe) zonaId: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number
+  ) {
+    return this.unidadesService.findByZona(zonaId, +page, +limit);
   }
 
   @Get('conductor/:conductorId')

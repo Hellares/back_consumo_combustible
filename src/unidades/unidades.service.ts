@@ -269,26 +269,31 @@ export class UnidadesService {
 
     const unidadesTransformadas = unidades.map(unidad => this.transformToResponseDto(unidad));
 
-    // Calcular metadata avanzada
+    // Calcular metadata avanzada - FORMATO IGUAL AL DE USUARIOS
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
     const hasPrevious = page > 1;
     const nextOffset = hasNext ? offset + limit : null;
     const prevOffset = hasPrevious ? Math.max(0, offset - limit) : null;
 
+    // ✅ RETORNAR EN EL MISMO FORMATO QUE USUARIOS
     return {
-      data: unidadesTransformadas,
-      meta: {
-        total,
-        page,
-        pageSize: limit,
-        totalPages,
-        offset,
-        limit,
-        nextOffset,
-        prevOffset,
-        hasNext,
-        hasPrevious
+      success: true,
+      message: 'Unidades obtenidas exitosamente',
+      data: {
+        data: unidadesTransformadas,
+        meta: {
+          total,
+          page,
+          pageSize: limit,
+          totalPages,
+          offset,
+          limit,
+          nextOffset,
+          prevOffset,
+          hasNext,
+          hasPrevious
+        }
       }
     };
   }
@@ -642,12 +647,25 @@ export class UnidadesService {
     return unidad ? this.transformToResponseDto(unidad) : null;
   }
 
-  async findByZona(zonaId: number): Promise<UnidadResponseDto[]> {
+  async findByZona(zonaId: number, page: number = 1, limit: number = 10) {
+    const offset = (page - 1) * limit;
+
+    // Contar total de unidades en la zona
+    const total = await this.prisma.unidad.count({
+      where: { 
+        zonaOperacionId: zonaId,
+        activo: true 
+      }
+    });
+
+    // Obtener unidades con paginación
     const unidades = await this.prisma.unidad.findMany({
       where: { 
         zonaOperacionId: zonaId,
         activo: true 
       },
+      skip: offset,
+      take: limit,
       include: {
         conductorOperador: {
           select: {
@@ -667,7 +685,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            // abastecimientos: true,
+            ticketsAbastecimiento: true,
             mantenimientos: true,
             fallas: true
           }
@@ -676,7 +694,34 @@ export class UnidadesService {
       orderBy: { placa: 'asc' }
     });
 
-    return unidades.map(unidad => this.transformToResponseDto(unidad));
+    const unidadesTransformadas = unidades.map(unidad => this.transformToResponseDto(unidad));
+
+    // Calcular metadata completa
+    const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+    const hasPrevious = page > 1;
+    const nextOffset = hasNext ? offset + limit : null;
+    const prevOffset = hasPrevious ? Math.max(0, offset - limit) : null;
+
+    return {
+      success: true,
+      message: 'Unidades de la zona obtenidas exitosamente',
+      data: {
+        data: unidadesTransformadas,
+        meta: {
+          total,
+          page,
+          pageSize: limit,
+          totalPages,
+          offset,
+          limit,
+          nextOffset,
+          prevOffset,
+          hasNext,
+          hasPrevious
+        }
+      }
+    };
   }
 
   async findSinConductor(): Promise<UnidadResponseDto[]> {
@@ -765,7 +810,7 @@ export class UnidadesService {
         },
         _count: {
           select: {
-            // abastecimientos: true,
+            ticketsAbastecimiento: true,
             mantenimientos: true,
             fallas: true
           }

@@ -176,7 +176,7 @@ export class GrifosController {
   }
 
   @Get('sede/:sedeId')
-  @UseGuards(JwtPermissionsGuard)
+  // @UseGuards(JwtPermissionsGuard)
   // @Permissions({ resource: 'grifos', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener grifos por sede',

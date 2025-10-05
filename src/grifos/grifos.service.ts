@@ -490,7 +490,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            // abastecimientos: true
+            ticketsAbastecimiento: true
           }
         }
       },
