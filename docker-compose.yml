@@ -1,43 +1,36 @@
 version: '3.8'
 
 services:
-  # Aplicación NestJS
-  app:
+  combustible-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nestjs-combustible-app
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
+    image: combustible-api:1.0.0
+    container_name: combustible-api
+    restart: always
     environment:
-      NODE_ENV: production
-      APP_PORT: 3000
-      
-      # Database - Conexión a tu PostgreSQL existente
-      DATABASE_URL: "postgresql://postgres:jtorres159.@86.48.26.221:5432/control_combustible_v4?connection_limit=50&pool_timeout=20&connect_timeout=60&statement_timeout=30000"
-      
-      # JWT Configuration
+      PORT: "3080"
+      APP_PORT: "3080"
+      NODE_ENV: "production"
+      DATABASE_URL: "postgresql://postgres:jtorres159.@postgres:5432/control_combustible_v4?connection_limit=50&pool_timeout=20&connect_timeout=60&statement_timeout=30000"
       JWT_SECRET: "tu-jwt-secret-muy-seguro-aqui-cambiar-en-produccion"
       JWT_EXPIRES_IN: "1d"
-      
-      # Default Role
       DEFAULT_ROLE_NAME: "USER"
-      
-      # CORS Configuration - syncronize.net.pe
-      CORS_ORIGIN: "http://localhost:3000,http://localhost:8080,https://syncronize.net.pe,https://www.syncronize.net.pe,https://api.syncronize.net.pe"
-      
-      # Cloudinary Configuration
+      CORS_ORIGIN: "http://localhost:3080,http://localhost:8080,https://syncronize.net.pe,https://www.syncronize.net.pe,https://api.syncronize.net.pe"
       CLOUDINARY_CLOUD_NAME: "doglf2gsy"
       CLOUDINARY_API_KEY: "485335513153247"
       CLOUDINARY_API_SECRET: "rVefITbGKMyrl9G2pmliO-uaAko"
     
-    networks:
-      - app-network
+    ports:
+      - "3080:3080"
     
     volumes:
+      - ./logs:/app/logs
       - ./uploads:/app/uploads
+    
+    networks:
+      - elastika-network
 
 networks:
-  app-network:
-    driver: bridge
+  elastika-network:
+    external: true
