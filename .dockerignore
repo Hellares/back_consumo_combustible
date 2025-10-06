@@ -2,7 +2,6 @@
 node_modules
 npm-debug.log
 yarn-error.log
-package-lock.json
 yarn.lock
 
 # Archivos de desarrollo
@@ -25,6 +24,7 @@ jest.config.js
 README.md
 SECURITY.md
 DEPLOYMENT.md
+COMANDOS_RAPIDOS.md
 *.md
 
 # Archivos de configuración local
@@ -55,11 +55,6 @@ yarn-error.log*
 # Archivos de sistema
 .DS_Store
 Thumbs.db
-
-# Archivos de Docker
-Dockerfile
-docker-compose.yml
-.dockerignore
 
 # Scripts de despliegue
 deploy.sh
