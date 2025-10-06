@@ -202,6 +202,7 @@ model Usuario {
   ticketsRechazados   TicketAbastecimiento[]  @relation("TicketRechazadoPor")
   detallesControlados DetalleAbastecimiento[] @relation("DetalleControlador")
   detallesAprobados   DetalleAbastecimiento[] @relation("DetalleAprobadoPor")
+  detallesConcluidos   DetalleAbastecimiento[] @relation("DetalleConcluido")
   archivosSubidos     ArchivoTicket[]         @relation("ArchivoSubidoPor")
 
   // Relaciones de Eventos
@@ -951,6 +952,11 @@ model TicketAbastecimiento {
 model DetalleAbastecimiento {
   id                       Int      @id @default(autoincrement())
   ticketId                 Int      @unique @map("ticket_id")
+  
+  // 🆕 CANTIDAD REAL ABASTECIDA (puede diferir de la solicitada)
+  cantidadAbastecida       Decimal? @map("cantidad_abastecida") @db.Decimal(10, 3)
+  motivoDiferencia         String?  @map("motivo_diferencia") @db.VarChar(200) // Si difiere de lo solicitado
+  
   horometroActual          Decimal? @map("horometro_actual") @db.Decimal(10, 2)
   horometroAnterior        Decimal? @map("horometro_anterior") @db.Decimal(10, 2)
   precintoAnterior         String?  @map("precinto_anterior") @db.VarChar(50)
@@ -968,6 +974,11 @@ model DetalleAbastecimiento {
   controladorId            Int?     @map("controlador_id")
   aprobadoPorId            Int      @map("aprobado_por")
   fechaAprobacion          DateTime @default(now()) @map("fecha_aprobacion")
+
+  estado                   String   @default("EN_PROGRESO") @db.VarChar(20) // EN_PROGRESO, CONCLUIDO
+  fechaConcluido           DateTime? @map("fecha_concluido")
+  concluidoPorId           Int?     @map("concluido_por")
+
   createdAt                DateTime @default(now()) @map("created_at")
   updatedAt                DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -975,7 +986,9 @@ model DetalleAbastecimiento {
   ticket      TicketAbastecimiento @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   controlador Usuario?             @relation("DetalleControlador", fields: [controladorId], references: [id])
   aprobadoPor Usuario              @relation("DetalleAprobadoPor", fields: [aprobadoPorId], references: [id])
+  concluidoPor   Usuario?             @relation("DetalleConcluido", fields: [concluidoPorId], references: [id])
 
+  @@index([estado])
   @@map("detalles_abastecimiento")
 }
 
