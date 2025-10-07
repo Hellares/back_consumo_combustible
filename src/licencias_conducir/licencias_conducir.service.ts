@@ -87,11 +87,13 @@ export class LicenciasConducirService {
   }
 
   async findAll(queryDto: QueryLicenciaConducirDto) {
-    const { page, limit, search, usuarioId, categoria, activo, estadoVigencia, soloVencidas, proximasVencer, orderBy, orderDirection } = queryDto;
-    const offset = (page - 1) * limit;
+    // Usar executeWithRetry para operaciones de lectura críticas
+    return this.prisma.executeWithRetry(async () => {
+      const { page, limit, search, usuarioId, categoria, activo, estadoVigencia, soloVencidas, proximasVencer, orderBy, orderDirection } = queryDto;
+      const offset = (page - 1) * limit;
 
-    // Construir filtros dinámicos
-    const where: any = {};
+      // Construir filtros dinámicos
+      const where: any = {};
 
     if (search) {
       where.OR = [
@@ -184,54 +186,55 @@ export class LicenciasConducirService {
       }
     }
 
-    // Contar total de registros
-    const total = await this.prisma.licenciaConducir.count({ where });
+      // Contar total de registros
+      const total = await this.prisma.licenciaConducir.count({ where });
 
-    // Obtener licencias con paginación
-    const licencias = await this.prisma.licenciaConducir.findMany({
-      where,
-      skip: offset,
-      take: limit,
-      orderBy: {
-        [orderBy]: orderDirection
-      },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nombres: true,
-            apellidos: true,
-            dni: true,
-            codigoEmpleado: true
+      // Obtener licencias con paginación
+      const licencias = await this.prisma.licenciaConducir.findMany({
+        where,
+        skip: offset,
+        take: limit,
+        orderBy: {
+          [orderBy]: orderDirection
+        },
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+              dni: true,
+              codigoEmpleado: true
+            }
           }
         }
-      }
+      });
+
+      const licenciasTransformadas = licencias.map(licencia => this.transformToResponseDto(licencia));
+
+      // Calcular metadata avanzada
+      const totalPages = Math.ceil(total / limit);
+      const hasNext = page < totalPages;
+      const hasPrevious = page > 1;
+      const nextOffset = hasNext ? offset + limit : null;
+      const prevOffset = hasPrevious ? Math.max(0, offset - limit) : null;
+
+      return {
+        data: licenciasTransformadas,
+        meta: {
+          total,
+          page,
+          pageSize: limit,
+          totalPages,
+          offset,
+          limit,
+          nextOffset,
+          prevOffset,
+          hasNext,
+          hasPrevious
+        }
+      };
     });
-
-    const licenciasTransformadas = licencias.map(licencia => this.transformToResponseDto(licencia));
-
-    // Calcular metadata avanzada
-    const totalPages = Math.ceil(total / limit);
-    const hasNext = page < totalPages;
-    const hasPrevious = page > 1;
-    const nextOffset = hasNext ? offset + limit : null;
-    const prevOffset = hasPrevious ? Math.max(0, offset - limit) : null;
-
-    return {
-      data: licenciasTransformadas,
-      meta: {
-        total,
-        page,
-        pageSize: limit,
-        totalPages,
-        offset,
-        limit,
-        nextOffset,
-        prevOffset,
-        hasNext,
-        hasPrevious
-      }
-    };
   }
 
   async findOne(id: number): Promise<LicenciaConducirResponseDto> {
@@ -548,61 +551,64 @@ export class LicenciasConducirService {
 
   // Método para obtener estadísticas de licencias
   async getStats() {
-    const today = new Date();
-    const in30Days = new Date();
-    in30Days.setDate(today.getDate() + 30);
-    const in90Days = new Date();
-    in90Days.setDate(today.getDate() + 90);
+    // Usar executeWithRetry para operaciones de estadísticas
+    return this.prisma.executeWithRetry(async () => {
+      const today = new Date();
+      const in30Days = new Date();
+      in30Days.setDate(today.getDate() + 30);
+      const in90Days = new Date();
+      in90Days.setDate(today.getDate() + 90);
 
-    const [total, activas, inactivas, vencidas, proximasVencer30, proximasVencer90, porCategoria] = await Promise.all([
-      this.prisma.licenciaConducir.count(),
-      this.prisma.licenciaConducir.count({ where: { activo: true } }),
-      this.prisma.licenciaConducir.count({ where: { activo: false } }),
-      this.prisma.licenciaConducir.count({
-        where: {
-          activo: true,
-          fechaExpiracion: { lt: today }
-        }
-      }),
-      this.prisma.licenciaConducir.count({
-        where: {
-          activo: true,
-          fechaExpiracion: { gte: today, lte: in30Days }
-        }
-      }),
-      this.prisma.licenciaConducir.count({
-        where: {
-          activo: true,
-          fechaExpiracion: { gte: today, lte: in90Days }
-        }
-      }),
-      this.prisma.licenciaConducir.groupBy({
-        by: ['categoria'],
-        _count: {
-          id: true
-        },
-        where: { activo: true },
-        orderBy: {
-          _count: {
-            id: 'desc'
+      const [total, activas, inactivas, vencidas, proximasVencer30, proximasVencer90, porCategoria] = await Promise.all([
+        this.prisma.licenciaConducir.count(),
+        this.prisma.licenciaConducir.count({ where: { activo: true } }),
+        this.prisma.licenciaConducir.count({ where: { activo: false } }),
+        this.prisma.licenciaConducir.count({
+          where: {
+            activo: true,
+            fechaExpiracion: { lt: today }
           }
-        }
-      })
-    ]);
+        }),
+        this.prisma.licenciaConducir.count({
+          where: {
+            activo: true,
+            fechaExpiracion: { gte: today, lte: in30Days }
+          }
+        }),
+        this.prisma.licenciaConducir.count({
+          where: {
+            activo: true,
+            fechaExpiracion: { gte: today, lte: in90Days }
+          }
+        }),
+        this.prisma.licenciaConducir.groupBy({
+          by: ['categoria'],
+          _count: {
+            id: true
+          },
+          where: { activo: true },
+          orderBy: {
+            _count: {
+              id: 'desc'
+            }
+          }
+        })
+      ]);
 
-    return {
-      total,
-      activas,
-      inactivas,
-      vencidas,
-      vigentes: activas - vencidas - proximasVencer90,
-      proximasVencer30,
-      proximasVencer90,
-      distribucePorCategoria: porCategoria.map(item => ({
-        categoria: item.categoria,
-        cantidad: item._count.id
-      }))
-    };
+      return {
+        total,
+        activas,
+        inactivas,
+        vencidas,
+        vigentes: activas - vencidas - proximasVencer90,
+        proximasVencer30,
+        proximasVencer90,
+        distribucePorCategoria: porCategoria.map(item => ({
+          categoria: item.categoria,
+          cantidad: item._count.id
+        }))
+      };
+    });
   }
 
   // Métodos auxiliares privados

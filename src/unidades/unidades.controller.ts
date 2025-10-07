@@ -43,9 +43,6 @@ import { UpdateUnidadDto } from './dto/update-unidade.dto';
 import { JwtRole } from '@/auth/jwt/jwt-role';
 import { JwtRolesGuard } from '@/auth/jwt/jwt-roles.guard';
 import { HasRoles } from '@/auth/jwt/has-roles';
-// import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
-// import { HasRoles } from 'src/auth/jwt/has-roles';
-// import { JwtRole } from 'src/auth/jwt/jwt-role';
 
 @ApiTags('Unidades')
 @ApiBearerAuth()
@@ -55,8 +52,6 @@ export class UnidadesController {
   constructor(private readonly unidadesService: UnidadesService) {}
 
   @Post()
-  @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'unidades', actions: ['create'] })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ 
     summary: 'Crear nueva unidad',
@@ -82,8 +77,6 @@ export class UnidadesController {
   @Get()
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
   @HasRoles(JwtRole.ADMIN, JwtRole.USER)
-  // @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'unidades', actions: ['read'] })
   @ApiOperation({ 
     summary: 'Listar unidades',
     description: 'Obtiene una lista paginada de unidades con filtros opcionales'

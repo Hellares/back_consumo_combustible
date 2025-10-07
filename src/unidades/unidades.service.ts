@@ -3,7 +3,6 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { QueryUnidadDto } from './dto/query-unidad.dto';
 import { UnidadResponseDto } from './dto/unidad-response.dto';
 import { plainToInstance } from 'class-transformer';
-// import { PrismaService } from 'src/database/prisma.service';
 import { CreateUnidadDto } from './dto/create-unidade.dto';
 import { UpdateUnidadDto } from './dto/update-unidade.dto';
 import { PrismaService } from '@/database/prisma.service';
@@ -13,94 +12,124 @@ export class UnidadesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createUnidadDto: CreateUnidadDto): Promise<UnidadResponseDto> {
-    try {
-      // Verificar si la placa ya existe
-      const existingPlaca = await this.prisma.unidad.findUnique({
-        where: { placa: createUnidadDto.placa }
-      });
+  try {
+    // ✅ 1. Validar fecha antes de hacer consultas DB
+    if (createUnidadDto.fechaAdquisicion) {
+      this.validateFechaAdquisicion(createUnidadDto.fechaAdquisicion);
+    }
 
-      if (existingPlaca) {
-        throw new ConflictException(`Ya existe una unidad con la placa: ${createUnidadDto.placa}`);
-      }
-
-      // Verificar VIN único si se proporciona
-      if (createUnidadDto.nroVin) {
-        const existingVin = await this.prisma.unidad.findUnique({
-          where: { nroVin: createUnidadDto.nroVin }
-        });
-
-        if (existingVin) {
-          throw new ConflictException(`Ya existe una unidad con el VIN: ${createUnidadDto.nroVin}`);
-        }
-      }
-
-      // Verificar número de motor único si se proporciona
-      if (createUnidadDto.nroMotor) {
-        const existingMotor = await this.prisma.unidad.findUnique({
-          where: { nroMotor: createUnidadDto.nroMotor }
-        });
-
-        if (existingMotor) {
-          throw new ConflictException(`Ya existe una unidad con el número de motor: ${createUnidadDto.nroMotor}`);
-        }
-      }
-
-      // Verificar si el conductor existe y está activo (si se proporciona)
-      if (createUnidadDto.conductorOperadorId) {
-        const conductor = await this.prisma.usuario.findUnique({
-          where: { id: createUnidadDto.conductorOperadorId }
-        });
-
-        if (!conductor) {
-          throw new NotFoundException(`Conductor con ID ${createUnidadDto.conductorOperadorId} no encontrado`);
-        }
-
-        if (!conductor.activo) {
-          throw new BadRequestException(`No se puede asignar un conductor inactivo`);
-        }
-
-        // Verificar que el conductor no tenga ya una unidad asignada
-        const conductorConUnidad = await this.prisma.unidad.findFirst({
-          where: {
-            conductorOperadorId: createUnidadDto.conductorOperadorId,
-            activo: true
-          }
-        });
-
-        if (conductorConUnidad) {
-          throw new ConflictException(`El conductor ya tiene asignada la unidad con placa: ${conductorConUnidad.placa}`);
-        }
-      }
-
-      // Verificar si la zona existe y está activa (si se proporciona)
-      if (createUnidadDto.zonaOperacionId) {
-        const zona = await this.prisma.zona.findUnique({
-          where: { id: createUnidadDto.zonaOperacionId }
-        });
-
-        if (!zona) {
-          throw new NotFoundException(`Zona con ID ${createUnidadDto.zonaOperacionId} no encontrada`);
-        }
-
-        if (!zona.activo) {
-          throw new BadRequestException(`No se puede asignar una zona inactiva`);
-        }
-      }
-
-      // Validar fechas
-      if (createUnidadDto.fechaAdquisicion) {
-        this.validateFechaAdquisicion(createUnidadDto.fechaAdquisicion);
-      }
-
-      // Preparar datos para crear
-      const data: any = { ...createUnidadDto };
+    // ✅ 2. Usar transacción para garantizar atomicidad
+    const unidad = await this.prisma.$transaction(async (tx) => {
       
-      // Convertir fecha a formato Date para Prisma
+      // ✅ 3. Verificar unicidad en paralelo para mayor eficiencia
+      const [existingPlaca, existingVin, existingMotor] = await Promise.all([
+        tx.unidad.findUnique({ 
+          where: { placa: createUnidadDto.placa } 
+        }),
+        createUnidadDto.nroVin 
+          ? tx.unidad.findUnique({ where: { nroVin: createUnidadDto.nroVin } })
+          : null,
+        createUnidadDto.nroMotor 
+          ? tx.unidad.findUnique({ where: { nroMotor: createUnidadDto.nroMotor } })
+          : null
+      ]);
+
+      // Validar resultados de unicidad
+      if (existingPlaca) {
+        throw new ConflictException(
+          `Ya existe una unidad con la placa: ${createUnidadDto.placa}`
+        );
+      }
+
+      if (existingVin) {
+        throw new ConflictException(
+          `Ya existe una unidad con el VIN: ${createUnidadDto.nroVin}`
+        );
+      }
+
+      if (existingMotor) {
+        throw new ConflictException(
+          `Ya existe una unidad con el número de motor: ${createUnidadDto.nroMotor}`
+        );
+      }
+
+      // ✅ 4. Validar conductor y zona en paralelo si existen
+      if (createUnidadDto.conductorOperadorId || createUnidadDto.zonaOperacionId) {
+        const [conductor, zona, conductorConUnidad] = await Promise.all([
+          createUnidadDto.conductorOperadorId
+            ? tx.usuario.findUnique({
+                where: { id: createUnidadDto.conductorOperadorId },
+                select: { id: true, activo: true, nombres: true, apellidos: true }
+              })
+            : null,
+          createUnidadDto.zonaOperacionId
+            ? tx.zona.findUnique({
+                where: { id: createUnidadDto.zonaOperacionId },
+                select: { id: true, activo: true, nombre: true }
+              })
+            : null,
+          createUnidadDto.conductorOperadorId
+            ? tx.unidad.findFirst({
+                where: {
+                  conductorOperadorId: createUnidadDto.conductorOperadorId,
+                  activo: true
+                },
+                select: { id: true, placa: true }
+              })
+            : null
+        ]);
+
+        // Validar conductor
+        if (createUnidadDto.conductorOperadorId) {
+          if (!conductor) {
+            throw new NotFoundException(
+              `Conductor con ID ${createUnidadDto.conductorOperadorId} no encontrado`
+            );
+          }
+
+          if (!conductor.activo) {
+            throw new BadRequestException(
+              `No se puede asignar un conductor inactivo`
+            );
+          }
+
+          if (conductorConUnidad) {
+            throw new ConflictException(
+              `El conductor ${conductor.nombres} ${conductor.apellidos} ya tiene asignada la unidad con placa: ${conductorConUnidad.placa}`
+            );
+          }
+        }
+
+        // Validar zona
+        if (createUnidadDto.zonaOperacionId) {
+          if (!zona) {
+            throw new NotFoundException(
+              `Zona con ID ${createUnidadDto.zonaOperacionId} no encontrada`
+            );
+          }
+
+          if (!zona.activo) {
+            throw new BadRequestException(
+              `No se puede asignar la zona inactiva: ${zona.nombre}`
+            );
+          }
+        }
+      }
+
+      // ✅ 5. Preparar datos con valores por defecto
+      const data: any = {
+        ...createUnidadDto,
+        estado: createUnidadDto.estado || 'OPERATIVO', // ✅ Estado por defecto
+        activo: createUnidadDto.activo ?? true, // ✅ Activo por defecto
+      };
+
+      // Convertir fecha a formato Date
       if (data.fechaAdquisicion) {
         data.fechaAdquisicion = new Date(data.fechaAdquisicion);
       }
 
-      const unidad = await this.prisma.unidad.create({
+      // ✅ 6. Crear unidad con todos los datos relacionados
+      return await tx.unidad.create({
         data,
         include: {
           conductorOperador: {
@@ -121,22 +150,36 @@ export class UnidadesService {
           },
           _count: {
             select: {
-              // abastecimientos: true,
               mantenimientos: true,
-              fallas: true
+              fallas: true,
+              inspecciones: true
             }
           }
         }
       });
+    });
 
-      return this.transformToResponseDto(unidad);
-    } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException('Error al crear la unidad');
+    // ✅ 7. Transformar y retornar
+    return this.transformToResponseDto(unidad);
+
+  } catch (error) {
+    // ✅ 8. Manejo de errores específicos
+    if (
+      error instanceof NotFoundException || 
+      error instanceof ConflictException || 
+      error instanceof BadRequestException
+    ) {
+      throw error;
     }
+    
+    // Log del error original para debugging
+    console.error('Error al crear unidad:', error);
+    
+    throw new BadRequestException(
+      'Error al crear la unidad. Por favor, verifica los datos e intenta nuevamente.'
+    );
   }
+}
 
   async findAll(queryDto: QueryUnidadDto) {
     const { page, limit, search, conductorOperadorId, zonaOperacionId, marca, tipoCombustible, estado, activo, sinConductor, soloOperativas, orderBy, orderDirection } = queryDto;

@@ -1,21 +1,155 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PrismaService.name);
+  private reconnectAttempts = 0;
+  private readonly maxReconnectAttempts = 5;
+
   constructor() {
     super({
-      log: ['query', 'info', 'warn', 'error'],
+      log: [
+        { emit: 'event', level: 'query' },
+        { emit: 'event', level: 'error' },
+        { emit: 'event', level: 'warn' },
+      ],
       errorFormat: 'colorless',
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
+    });
+
+    // Manejar eventos de log
+    this.$on('error' as never, (e: any) => {
+      this.logger.error('Prisma Error:', e);
+      this.handleConnectionError(e);
+    });
+
+    this.$on('warn' as never, (e: any) => {
+      this.logger.warn('Prisma Warning:', e);
+    });
+
+    this.$on('query' as never, (e: any) => {
+      if (process.env.NODE_ENV === 'development') {
+        this.logger.debug(`Query: ${e.query} - Duration: ${e.duration}ms`);
+      }
     });
   }
 
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+      this.logger.log('Database connected successfully');
+      this.reconnectAttempts = 0;
+      
+      // Configurar health check periódico
+      this.startHealthCheck();
+    } catch (error) {
+      this.logger.error('Failed to connect to database:', error);
+      throw error;
+    }
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
+    this.logger.log('Database disconnected');
+  }
+
+  /**
+   * Maneja errores de conexión y reintenta conectar si es necesario
+   */
+  private async handleConnectionError(error: any) {
+    const errorMessage = error?.message || '';
+    
+    // Detectar errores de conexión
+    if (
+      errorMessage.includes('Connection') ||
+      errorMessage.includes('ECONNRESET') ||
+      errorMessage.includes('10054') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('timeout')
+    ) {
+      this.logger.warn(`Connection error detected. Attempt ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts}`);
+      
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.reconnectAttempts++;
+        await this.reconnect();
+      } else {
+        this.logger.error('Max reconnection attempts reached');
+        this.reconnectAttempts = 0;
+      }
+    }
+  }
+
+  /**
+   * Reintenta la conexión a la base de datos
+   */
+  private async reconnect() {
+    try {
+      await this.$disconnect();
+      await new Promise(resolve => setTimeout(resolve, 1000 * this.reconnectAttempts));
+      await this.$connect();
+      this.logger.log('Reconnected to database successfully');
+      this.reconnectAttempts = 0;
+    } catch (error) {
+      this.logger.error('Reconnection failed:', error);
+    }
+  }
+
+  /**
+   * Health check periódico para mantener la conexión activa
+   */
+  private startHealthCheck() {
+    setInterval(async () => {
+      try {
+        await this.$queryRaw`SELECT 1`;
+      } catch (error) {
+        this.logger.warn('Health check failed, attempting reconnection');
+        await this.handleConnectionError(error);
+      }
+    }, 30000); // Cada 30 segundos
+  }
+
+  /**
+   * Ejecuta una query con retry automático en caso de error de conexión
+   */
+  async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+  ): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error: any) {
+        lastError = error;
+        const errorMessage = error?.message || '';
+        
+        // Solo reintentar en errores de conexión
+        if (
+          errorMessage.includes('Connection') ||
+          errorMessage.includes('ECONNRESET') ||
+          errorMessage.includes('10054') ||
+          errorMessage.includes('timeout')
+        ) {
+          this.logger.warn(`Query failed (attempt ${attempt}/${maxRetries}), retrying...`);
+          
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            await this.reconnect();
+          }
+        } else {
+          // Si no es error de conexión, lanzar inmediatamente
+          throw error;
+        }
+      }
+    }
+    
+    throw lastError;
   }
 
   // Métodos de utilidad para transacciones
