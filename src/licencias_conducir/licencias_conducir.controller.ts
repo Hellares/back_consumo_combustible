@@ -130,7 +130,7 @@ export class LicenciasConducirController {
   }
 
   @Get('stats')
-  @UseGuards(JwtPermissionsGuard)
+
   // @Permissions({ resource: 'licencias', actions: ['read'] })
   @ApiOperation({
     summary: 'Estadísticas de licencias',
@@ -173,8 +173,6 @@ export class LicenciasConducirController {
   }
 
   @Get('vencidas')
-  @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'licencias', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener licencias vencidas',
     description: 'Obtiene todas las licencias que ya han expirado'
@@ -188,7 +186,7 @@ export class LicenciasConducirController {
   }
 
   @Get('proximas-vencer')
-  @UseGuards(JwtPermissionsGuard)
+
   // @Permissions({ resource: 'licencias', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener licencias próximas a vencer',
@@ -204,8 +202,6 @@ export class LicenciasConducirController {
   }
 
   @Get('categoria/:categoria')
-  @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'licencias', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener licencias por categoría',
     description: 'Obtiene todas las licencias activas de una categoría específica'
@@ -224,7 +220,7 @@ export class LicenciasConducirController {
   }
 
   @Get('usuario/:usuarioId')
-  @UseGuards(JwtPermissionsGuard)
+
   // @Permissions({ resource: 'licencias', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener licencias por usuario',
@@ -244,7 +240,7 @@ export class LicenciasConducirController {
   }
 
   @Get('numero/:numeroLicencia')
-  @UseGuards(JwtPermissionsGuard)
+
   // @Permissions({ resource: 'licencias', actions: ['read'] })
   @ApiOperation({
     summary: 'Buscar licencia por número',
@@ -267,7 +263,7 @@ export class LicenciasConducirController {
   }
 
   @Get(':id')
-  @UseGuards(JwtPermissionsGuard)
+
   // @Permissions({ resource: 'licencias', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener licencia por ID',
@@ -290,7 +286,6 @@ export class LicenciasConducirController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtPermissionsGuard)
   // @Permissions({ resource: 'licencias', actions: ['update'] })
   @ApiOperation({
     summary: 'Actualizar licencia de conducir',
