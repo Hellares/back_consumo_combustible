@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { UsuarioResponseDto, PaginatedUsuarioResponseDto } from './dto/usuario-response.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { AsignarRolDto, RevocarRolDto, RolAsignadoResponseDto } from './dto/asignar-rol.dto';
+import { UsuarioWithRolesResponseDto } from '@/roles/dto/create-role.dto';
 
 @Injectable()
 export class UsuariosService {
@@ -143,7 +144,7 @@ async create(createUsuarioDto: CreateUsuarioDto): Promise<UsuarioResponseDto> {
   // Número total de páginas
   const totalPages = Math.ceil(total / pageSize);
 
-  // Obtener los usuarios paginados
+  // Obtener los usuarios paginados CON ROLES ACTIVOS
   const data = await this.prisma.usuario.findMany({
     where: { activo: true },
     skip: safeOffset,
@@ -160,11 +161,28 @@ async create(createUsuarioDto: CreateUsuarioDto): Promise<UsuarioResponseDto> {
       activo: true,
       createdAt: true,
       updatedAt: true,
+      roles: {  // Nueva inclusión: solo roles activos, con id y nombre
+        where: { activo: true },
+        select: {
+          rol: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+        },
+      },
     },
     orderBy: {
       createdAt: 'desc',
     },
   });
+
+  // Mapear roles para que coincida con el DTO
+  const mappedData = data.map((usuario) => ({
+    ...usuario,
+    roles: usuario.roles?.map((ur) => ur.rol) || [],
+  }));
 
   // Metadata de paginación
   const meta = {
@@ -180,49 +198,161 @@ async create(createUsuarioDto: CreateUsuarioDto): Promise<UsuarioResponseDto> {
     hasPrevious: page > 1,
   };
 
-  return { data, meta };
+  return { data: mappedData, meta };
+}
+
+  async search(paginationDto: PaginationDto, filters: { dni?: string; nombre?: string }): Promise<PaginatedUsuarioResponseDto> {
+  const { limit = 10, offset = 0 } = paginationDto;
+
+  // Normalizar valores
+  const pageSize = Math.max(1, limit);
+  const safeOffset = Math.max(0, offset);
+
+  // Calcular página actual
+  const page = Math.floor(safeOffset / pageSize) + 1;
+
+  // Construir cláusula WHERE base (solo usuarios activos)
+  let where: any = { activo: true };
+
+  // Agregar filtros de búsqueda si se proporcionan
+  if (filters.dni || filters.nombre) {
+    where.OR = [];
+
+    if (filters.dni) {
+      where.OR.push({ dni: { contains: filters.dni, mode: 'insensitive' } });
+      where.OR.push({ codigoEmpleado: { contains: filters.dni, mode: 'insensitive' } });
+    }
+
+    if (filters.nombre) {
+      where.OR.push({ nombres: { contains: filters.nombre, mode: 'insensitive' } });
+      where.OR.push({ apellidos: { contains: filters.nombre, mode: 'insensitive' } });
+    }
+  }
+
+  // Total de usuarios que coinciden con los filtros
+  const total = await this.prisma.usuario.count({
+    where,
+  });
+
+  // Número total de páginas
+  const totalPages = Math.ceil(total / pageSize);
+
+  // Obtener los usuarios paginados CON ROLES ACTIVOS
+  const data = await this.prisma.usuario.findMany({
+    where,
+    skip: safeOffset,
+    take: pageSize,
+    select: {
+      id: true,
+      nombres: true,
+      apellidos: true,
+      email: true,
+      telefono: true,
+      dni: true,
+      codigoEmpleado: true,
+      fechaIngreso: true,
+      activo: true,
+      createdAt: true,
+      updatedAt: true,
+      roles: {  // Nueva inclusión: solo roles activos, con id y nombre
+        where: { activo: true },
+        select: {
+          rol: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  // Mapear roles para que coincida con el DTO (extraer rol del objeto roles)
+  const mappedData = data.map((usuario) => ({
+    ...usuario,
+    roles: usuario.roles?.map((ur) => ur.rol) || [],  // Extrae { id, nombre } del rol
+  }));
+
+  // Metadata de paginación (igual que antes)
+  const meta = {
+    total,
+    page,
+    pageSize,
+    totalPages,
+    offset: safeOffset,
+    limit: pageSize,
+    nextOffset: page < totalPages ? safeOffset + pageSize : null,
+    prevOffset: page > 1 ? safeOffset - pageSize : null,
+    hasNext: page < totalPages,
+    hasPrevious: page > 1,
+  };
+
+  return { data: mappedData, meta };
 }
 
   // Método adicional para obtener usuario con sus roles
-  async findOneWithRoles(id: number) {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        nombres: true,
-        apellidos: true,
-        email: true,
-        telefono: true,
-        dni: true,
-        codigoEmpleado: true,
-        fechaIngreso: true,
-        activo: true,
-        // createdAt: true,
-        // updatedAt: true,
-        roles: {
-          where: { activo: true },
-          select: {
-            // id: true,
-            fechaAsignacion: true,
-            rol: {
-              select: {
-                id: true,
-                nombre: true,
-                descripcion: true,
-                permisos: true,
-              }
-            }
-          }
-        }
-      },
-    });
+//   async findOneWithRoles(id: number): Promise<UsuarioWithRolesResponseDto> {
+//   const usuario = await this.prisma.usuario.findUnique({
+//     where: { id },
+//     select: {
+//       id: true,
+//       nombres: true,
+//       apellidos: true,
+//       email: true,
+//       telefono: true,
+//       dni: true,
+//       codigoEmpleado: true,
+//       fechaIngreso: true,
+//       activo: true,
+//       createdAt: true,
+//       updatedAt: true,
+//       // Roles simples (activos) para el campo 'roles'
+//       roles: {
+//         where: { activo: true },
+//         select: {
+//           rol: {
+//             select: {
+//               id: true,
+//               nombre: true,
+//             },
+//           },
+//         },
+//       },
+//       // Roles detallados con fechas para 'assignedRoles'
+//       usuarioRol: {  // Renombrado include para claridad
+//         where: { activo: true },  // Solo activos, ajusta si quieres todos
+//         select: {
+//           fechaAsignacion: true,
+//           rol: {
+//             select: {
+//               id: true,
+//               nombre: true,
+//               descripcion: true,
+//               permisos: true,
+//             },
+//           },
+//         },
+//       },
+//     },
+//   });
 
-    if (!usuario) {
-      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
-    }
+//   if (!usuario) {
+//     throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+//   }
 
-    return usuario;
-  }
+//   return {
+//     ...usuario,
+//     roles: usuario.roles?.map((ur) => ur.rol) || [],  // Roles simples
+//     assignedRoles: usuario.usuarioRol?.map((ur) => ({
+//       fechaAsignacion: ur.fechaAsignacion,
+//       rol: ur.rol,
+//     })) || [],  // Roles detallados
+//   };
+// }
 
   /**
  * Asignar un rol adicional a un usuario existente

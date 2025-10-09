@@ -28,6 +28,9 @@ export class UsuarioResponseDto {
   @ApiProperty()
   activo: boolean;
 
+  @ApiPropertyOptional({ type: [Object] }) // Array de roles activos: { id, nombre }
+  roles?: { id: number; nombre: string }[];
+
   // @ApiProperty()
   // createdAt: Date;
 

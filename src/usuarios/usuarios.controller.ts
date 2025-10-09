@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, ParseIntPipe } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
-import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
-import { UsuarioResponseDto } from './dto/usuario-response.dto';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { PaginatedUsuarioResponseDto, UsuarioResponseDto } from './dto/usuario-response.dto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { UsuarioWithRolesResponseDto } from 'src/roles/dto/create-role.dto';
@@ -12,6 +12,7 @@ import { JwtRole } from 'src/auth/jwt/jwt-role';
 import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
 import { JwtPermissionsGuard } from 'src/auth/jwt/jwt-permissions.guard';
 import { Permissions } from 'src/common/decorators/permissions.decorator';
+import { SearchUsuarioDto } from './dto/search-usuario.dto';
 
 @Controller('user')
 export class UsuariosController {
@@ -56,6 +57,23 @@ export class UsuariosController {
     };
   }
 
+
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
+  @Get('search')
+  @ApiOperation({ summary: 'Buscar usuarios por DNI o nombre (parcial e insensible a mayúsculas)' })
+  @ApiQuery({ name: 'dni', required: false, type: String, description: 'DNI o código de empleado para buscar' })
+  @ApiQuery({ name: 'nombre', required: false, type: String, description: 'Nombre o apellido parcial para buscar' })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuarios encontrados exitosamente',
+    type: PaginatedUsuarioResponseDto,
+  })
+  async searchUsers(@Query() searchDto: SearchUsuarioDto) {
+    const { dni, nombre, ...paginationDto } = searchDto; // Separa filtros de paginación
+    return this.usuariosService.search(paginationDto, { dni, nombre });
+}
+
  
 
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
@@ -67,21 +85,21 @@ export class UsuariosController {
     return this.usuariosService.findAll(paginationDto);
   }
 
-  @Get(':id/roles')
-  @ApiOperation({ summary: 'Obtener usuario por ID con sus roles asignados' })
-  @ApiParam({ name: 'id', description: 'ID del usuario' })
-  @ApiResponse({
-    status: 200,
-    description: 'Usuario con roles encontrado exitosamente',
-    type: UsuarioWithRolesResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Usuario no encontrado',
-  })
-  async findOneWithRoles(@Param('id', ParseIntPipe) id: number): Promise<UsuarioWithRolesResponseDto> {
-    return this.usuariosService.findOneWithRoles(id);
-  }
+  // @Get(':id/roles')
+  // @ApiOperation({ summary: 'Obtener usuario por ID con sus roles asignados' })
+  // @ApiParam({ name: 'id', description: 'ID del usuario' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Usuario con roles encontrado exitosamente',
+  //   type: UsuarioWithRolesResponseDto,
+  // })
+  // @ApiResponse({
+  //   status: 404,
+  //   description: 'Usuario no encontrado',
+  // })
+  // async findOneWithRoles(@Param('id', ParseIntPipe) id: number): Promise<UsuarioWithRolesResponseDto> {
+  //   return this.usuariosService.findOneWithRoles(id);
+  // }
 
   @Post(':id/roles')
   @ApiOperation({ summary: 'Asignar un rol adicional a un usuario' })
