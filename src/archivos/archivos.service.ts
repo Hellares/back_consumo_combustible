@@ -255,13 +255,13 @@ export class ArchivosService {
       );
     }
 
-    // Eliminar de Cloudinary
-    try {
-      await this.cloudinaryService.deleteFile(archivo.rutaAlmacenamiento);
-    } catch (error) {
-      console.error('Error al eliminar de Cloudinary:', error);
-      // Continuar con el soft delete aunque falle la eliminación de Cloudinary
-    }
+    //! Eliminar de Cloudinary sino solo softdelete
+    // try {
+    //   await this.cloudinaryService.deleteFile(archivo.rutaAlmacenamiento);
+    // } catch (error) {
+    //   console.error('Error al eliminar de Cloudinary:', error);
+    //   // Continuar con el soft delete aunque falle la eliminación de Cloudinary
+    // }
 
     // Soft delete en base de datos
     await this.prisma.archivoTicket.update({

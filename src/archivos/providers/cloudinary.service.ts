@@ -38,10 +38,12 @@ export class CloudinaryService {
         {
           folder: `${this.configService.get<string>('CLOUDINARY_FOLDER') || 'combustible-app'}/${folder}`,
           resource_type: resourceType,
-          // Generar thumbnail automático para imágenes
+          // Redimensionar imágenes para optimizar tamaño manteniendo legibilidad
           transformation: resourceType === 'image' ? [
-            { width: 300, height: 300, crop: 'limit' }
+            { width: 1080, height: 1080, crop: 'limit' }
           ] : undefined,
+          // Establecer calidad óptima para imágenes (90% balance entre calidad y tamaño)
+          quality: resourceType === 'image' ? 90 : undefined,
           // Preservar el nombre original CON extensión
           use_filename: true,
           unique_filename: true,

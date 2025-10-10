@@ -48,7 +48,7 @@ import { JwtRole } from 'src/auth/jwt/jwt-role';
 
 @ApiTags('Archivos de Tickets')
 @ApiBearerAuth()
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('archivos')
 export class ArchivosController {
   constructor(private readonly archivosService: ArchivosService) {}
@@ -349,6 +349,8 @@ async uploadArchivos(
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Eliminar archivo',
