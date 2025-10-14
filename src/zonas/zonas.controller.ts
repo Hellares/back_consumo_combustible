@@ -48,8 +48,7 @@ export class ZonasController {
   constructor(private readonly zonasService: ZonasService) {}
 
   @Post()
-  // @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'zonas', actions: ['create'] })
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ 
     summary: 'Crear nueva zona',

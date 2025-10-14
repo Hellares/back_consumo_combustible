@@ -48,8 +48,6 @@ export class GrifosController {
   constructor(private readonly grifosService: GrifosService) {}
 
   @Post()
-  @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'grifos', actions: ['create'] })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ 
     summary: 'Crear nuevo grifo',
@@ -216,7 +214,6 @@ export class GrifosController {
   }
 
   @Get('codigo/:codigo')
-  @UseGuards(JwtPermissionsGuard)
   // @Permissions({ resource: 'grifos', actions: ['read'] })
   @ApiOperation({
     summary: 'Buscar grifo por código',
@@ -239,8 +236,6 @@ export class GrifosController {
   }
 
   @Get(':id')
-  @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'grifos', actions: ['read'] })
   @ApiOperation({
     summary: 'Obtener grifo por ID',
     description: 'Obtiene un grifo específico por su ID, incluyendo información de sede y zona'
@@ -262,8 +257,6 @@ export class GrifosController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'grifos', actions: ['update'] })
   @ApiOperation({
     summary: 'Actualizar grifo',
     description: 'Actualiza los datos de un grifo existente'

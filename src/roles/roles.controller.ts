@@ -35,7 +35,7 @@ export class RolesController {
 
   @Post()
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
-  @HasRoles(JwtRole.ADMIN)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   @ApiOperation({ summary: 'Crear un nuevo rol' })
   @ApiResponse({
     status: 201,

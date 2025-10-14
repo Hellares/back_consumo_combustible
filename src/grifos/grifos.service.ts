@@ -15,99 +15,89 @@ export class GrifosService {
   constructor(private prisma: PrismaService) {}
 
   async create(createGrifoDto: CreateGrifoDto): Promise<GrifoResponseDto> {
-    try {
-      // Verificar si la sede existe
-      const sede = await this.prisma.sede.findUnique({
-        where: { id: createGrifoDto.sedeId },
-        include: {
-          zona: true
-        }
+  try {
+    // Verificar si la sede existe
+    const sede = await this.prisma.sede.findUnique({
+      where: { id: createGrifoDto.sedeId },
+      include: {
+        zona: true
+      }
+    });
+
+    if (!sede) {
+      throw new NotFoundException(`Sede con ID ${createGrifoDto.sedeId} no encontrada`);
+    }
+
+    if (!sede.activo) {
+      throw new BadRequestException(`No se puede crear un grifo en una sede inactiva`);
+    }
+
+    if (!sede.zona.activo) {
+      throw new BadRequestException(`No se puede crear un grifo en una zona inactiva`);
+    }
+
+    // Verificar si el código ya existe (si se proporciona)
+    if (createGrifoDto.codigo) {
+      const existingGrifo = await this.prisma.grifo.findUnique({
+        where: { codigo: createGrifoDto.codigo }
       });
 
-      if (!sede) {
-        throw new NotFoundException(`Sede con ID ${createGrifoDto.sedeId} no encontrada`);
+      if (existingGrifo) {
+        throw new ConflictException(`Ya existe un grifo con el código: ${createGrifoDto.codigo}`);
       }
+    }
 
-      if (!sede.activo) {
-        throw new BadRequestException(`No se puede crear un grifo en una sede inactiva`);
+    // Verificar si el nombre ya existe en la misma sede
+    const existingGrifoByName = await this.prisma.grifo.findFirst({
+      where: { 
+        nombre: {
+          equals: createGrifoDto.nombre,
+          mode: 'insensitive'
+        },
+        sedeId: createGrifoDto.sedeId
       }
+    });
 
-      if (!sede.zona.activo) {
-        throw new BadRequestException(`No se puede crear un grifo en una zona inactiva`);
-      }
+    if (existingGrifoByName) {
+      throw new ConflictException(`Ya existe un grifo con el nombre "${createGrifoDto.nombre}" en esta sede`);
+    }
 
-      // Verificar si el código ya existe (si se proporciona)
-      if (createGrifoDto.codigo) {
-        const existingGrifo = await this.prisma.grifo.findUnique({
-          where: { codigo: createGrifoDto.codigo }
-        });
+    // Validar horarios
+    if (createGrifoDto.horarioApertura && createGrifoDto.horarioCierre) {
+      this.validateHorarios(createGrifoDto.horarioApertura, createGrifoDto.horarioCierre);
+    }
 
-        if (existingGrifo) {
-          throw new ConflictException(`Ya existe un grifo con el código: ${createGrifoDto.codigo}`);
-        }
-      }
-
-      // Verificar si el nombre ya existe en la misma sede
-      const existingGrifoByName = await this.prisma.grifo.findFirst({
-        where: { 
-          nombre: {
-            equals: createGrifoDto.nombre,
-            mode: 'insensitive'
-          },
-          sedeId: createGrifoDto.sedeId
-        }
-      });
-
-      if (existingGrifoByName) {
-        throw new ConflictException(`Ya existe un grifo con el nombre "${createGrifoDto.nombre}" en esta sede`);
-      }
-
-      // Validar horarios
-      if (createGrifoDto.horarioApertura && createGrifoDto.horarioCierre) {
-        this.validateHorarios(createGrifoDto.horarioApertura, createGrifoDto.horarioCierre);
-      }
-
-      // Preparar datos para crear
-      // const data: any = { ...createGrifoDto };
-      
-      // // Convertir horarios a formato DateTime para Prisma
-      // if (data.horarioApertura) {
-      //   data.horarioApertura = new Date(`1970-01-01T${data.horarioApertura}:00Z`);
-      // }
-      // if (data.horarioCierre) {
-      //   data.horarioCierre = new Date(`1970-01-01T${data.horarioCierre}:00Z`);
-      // }
-
-      const grifo = await this.prisma.grifo.create({
-        data: createGrifoDto,
-        include: {
-          sede: {
-            include: {
-              zona: {
-                select: {
-                  id: true,
-                  nombre: true,
-                  codigo: true
-                }
+    // Crear el grifo directamente con los datos del DTO
+    const grifo = await this.prisma.grifo.create({
+      data: createGrifoDto,
+      include: {
+        sede: {
+          include: {
+            zona: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true
               }
             }
-          },
-          _count: {
-            select: {
-              ticketsAbastecimiento: true
-            }
+          }
+        },
+        _count: {
+          select: {
+            ticketsAbastecimiento: true
           }
         }
-      });
-
-      return this.transformToResponseDto(grifo);
-    } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
-        throw error;
       }
-      throw new BadRequestException('Error al crear el grifo');
+    });
+
+    return this.transformToResponseDto(grifo);
+  } catch (error) {
+    if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
+      throw error;
     }
+    throw new BadRequestException('Error al crear el grifo');
   }
+}
 
   async findAll(queryDto: QueryGrifoDto) {
     const { page, limit, search, sedeId, zonaId, activo, soloAbiertos, orderBy, orderDirection } = queryDto;
@@ -238,7 +228,7 @@ export class GrifosService {
         },
         _count: {
           select: {
-            // abastecimientos: true
+            ticketsAbastecimiento: true
           }
         }
       }
@@ -252,118 +242,106 @@ export class GrifosService {
   }
 
   async update(id: number, updateGrifoDto: UpdateGrifoDto): Promise<GrifoResponseDto> {
-    try {
-      // Verificar si el grifo existe
-      const existingGrifo = await this.prisma.grifo.findUnique({
-        where: { id }
+  try {
+    // Verificar si el grifo existe
+    const existingGrifo = await this.prisma.grifo.findUnique({
+      where: { id }
+    });
+
+    if (!existingGrifo) {
+      throw new NotFoundException(`Grifo con ID ${id} no encontrado`);
+    }
+
+    // Verificar si se está cambiando de sede
+    if (updateGrifoDto.sedeId && updateGrifoDto.sedeId !== existingGrifo.sedeId) {
+      const sede = await this.prisma.sede.findUnique({
+        where: { id: updateGrifoDto.sedeId },
+        include: { zona: true }
       });
 
-      if (!existingGrifo) {
-        throw new NotFoundException(`Grifo con ID ${id} no encontrado`);
+      if (!sede) {
+        throw new NotFoundException(`Sede con ID ${updateGrifoDto.sedeId} no encontrada`);
       }
 
-      // Verificar si se está cambiando de sede
-      if (updateGrifoDto.sedeId && updateGrifoDto.sedeId !== existingGrifo.sedeId) {
-        const sede = await this.prisma.sede.findUnique({
-          where: { id: updateGrifoDto.sedeId },
-          include: { zona: true }
-        });
+      if (!sede.activo) {
+        throw new BadRequestException(`No se puede mover el grifo a una sede inactiva`);
+      }
 
-        if (!sede) {
-          throw new NotFoundException(`Sede con ID ${updateGrifoDto.sedeId} no encontrada`);
+      if (!sede.zona.activo) {
+        throw new BadRequestException(`No se puede mover el grifo a una zona inactiva`);
+      }
+    }
+
+    // Verificar conflictos de código (si se está actualizando)
+    if (updateGrifoDto.codigo && updateGrifoDto.codigo !== existingGrifo.codigo) {
+      const conflictingGrifo = await this.prisma.grifo.findUnique({
+        where: { codigo: updateGrifoDto.codigo }
+      });
+
+      if (conflictingGrifo) {
+        throw new ConflictException(`Ya existe un grifo con el código: ${updateGrifoDto.codigo}`);
+      }
+    }
+
+    // Verificar conflictos de nombre en la sede (si se está actualizando)
+    if (updateGrifoDto.nombre && updateGrifoDto.nombre !== existingGrifo.nombre) {
+      const targetSedeId = updateGrifoDto.sedeId || existingGrifo.sedeId;
+      const conflictingGrifo = await this.prisma.grifo.findFirst({
+        where: { 
+          nombre: {
+            equals: updateGrifoDto.nombre,
+            mode: 'insensitive'
+          },
+          sedeId: targetSedeId,
+          NOT: { id }
         }
+      });
 
-        if (!sede.activo) {
-          throw new BadRequestException(`No se puede mover el grifo a una sede inactiva`);
-        }
-
-        if (!sede.zona.activo) {
-          throw new BadRequestException(`No se puede mover el grifo a una zona inactiva`);
-        }
+      if (conflictingGrifo) {
+        throw new ConflictException(`Ya existe un grifo con el nombre "${updateGrifoDto.nombre}" en esta sede`);
       }
+    }
 
-      // Verificar conflictos de código (si se está actualizando)
-      if (updateGrifoDto.codigo && updateGrifoDto.codigo !== existingGrifo.codigo) {
-        const conflictingGrifo = await this.prisma.grifo.findUnique({
-          where: { codigo: updateGrifoDto.codigo }
-        });
+    // Validar horarios si se están actualizando
+    const horarioApertura = updateGrifoDto.horarioApertura || existingGrifo.horarioApertura;
+    const horarioCierre = updateGrifoDto.horarioCierre || existingGrifo.horarioCierre;
+    
+    if (horarioApertura && horarioCierre) {
+      this.validateHorarios(horarioApertura, horarioCierre);
+    }
 
-        if (conflictingGrifo) {
-          throw new ConflictException(`Ya existe un grifo con el código: ${updateGrifoDto.codigo}`);
-        }
-      }
-
-      // Verificar conflictos de nombre en la sede (si se está actualizando)
-      if (updateGrifoDto.nombre && updateGrifoDto.nombre !== existingGrifo.nombre) {
-        const targetSedeId = updateGrifoDto.sedeId || existingGrifo.sedeId;
-        const conflictingGrifo = await this.prisma.grifo.findFirst({
-          where: { 
-            nombre: {
-              equals: updateGrifoDto.nombre,
-              mode: 'insensitive'
-            },
-            sedeId: targetSedeId,
-            NOT: { id }
-          }
-        });
-
-        if (conflictingGrifo) {
-          throw new ConflictException(`Ya existe un grifo con el nombre "${updateGrifoDto.nombre}" en esta sede`);
-        }
-      }
-
-      // Validar horarios si se están actualizando
-      // const horarioApertura = updateGrifoDto.horarioApertura || this.formatTimeFromDate(existingGrifo.horarioApertura);
-      // const horarioCierre = updateGrifoDto.horarioCierre || this.formatTimeFromDate(existingGrifo.horarioCierre);
-      const horarioApertura = updateGrifoDto.horarioApertura || existingGrifo.horarioApertura;
-      const horarioCierre = updateGrifoDto.horarioCierre || existingGrifo.horarioCierre;
-      
-      if (horarioApertura && horarioCierre) {
-        this.validateHorarios(horarioApertura, horarioCierre);
-      }
-
-      // Preparar datos para actualizar
-      const data: any = { ...updateGrifoDto };
-      
-      // Convertir horarios a formato DateTime para Prisma
-      if (data.horarioApertura) {
-        data.horarioApertura = new Date(`1970-01-01T${data.horarioApertura}:00Z`);
-      }
-      if (data.horarioCierre) {
-        data.horarioCierre = new Date(`1970-01-01T${data.horarioCierre}:00Z`);
-      }
-
-      const grifo = await this.prisma.grifo.update({
-        where: { id },
-        data,
-        include: {
-          sede: {
-            include: {
-              zona: {
-                select: {
-                  id: true,
-                  nombre: true,
-                  codigo: true
-                }
+    // Actualizar el grifo directamente con los datos del DTO
+    const grifo = await this.prisma.grifo.update({
+      where: { id },
+      data: updateGrifoDto,
+      include: {
+        sede: {
+          include: {
+            zona: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true
               }
             }
-          },
-          _count: {
-            select: {
-              // abastecimientos: true
-            }
+          }
+        },
+        _count: {
+          select: {
+            ticketsAbastecimiento: true
           }
         }
-      });
-
-      return this.transformToResponseDto(grifo);
-    } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
-        throw error;
       }
-      throw new BadRequestException('Error al actualizar el grifo');
+    });
+
+    return this.transformToResponseDto(grifo);
+  } catch (error) {
+    if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
+      throw error;
     }
+    throw new BadRequestException('Error al actualizar el grifo');
   }
+}
 
   async remove(id: number): Promise<{ message: string }> {
     try {
