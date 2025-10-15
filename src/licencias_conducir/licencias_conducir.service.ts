@@ -1,7 +1,3 @@
-// =============================================
-// src/licencias-conducir/licencias-conducir.service.ts
-// =============================================
-
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 
 import { QueryLicenciaConducirDto } from './dto/query-licencia-conducir.dto';
@@ -13,7 +9,7 @@ import { UpdateLicenciaConducirDto } from './dto/update-licencias_conducir.dto';
 
 @Injectable()
 export class LicenciasConducirService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createLicenciaConducirDto: CreateLicenciaConducirDto): Promise<LicenciaConducirResponseDto> {
     try {
@@ -62,7 +58,29 @@ export class LicenciasConducirService {
         fechaExpiracion: new Date(createLicenciaConducirDto.fechaExpiracion)
       };
 
-      const licencia = await this.prisma.licenciaConducir.create({
+      // const licencia = await this.prisma.licenciaConducir.create({
+      //   data,
+      //   include: {
+      //     usuario: {
+      //       select: {
+      //         id: true,
+      //         nombres: true,
+      //         apellidos: true,
+      //         dni: true,
+      //         codigoEmpleado: true
+      //       }
+      //     }
+      //   }
+      // });
+
+      
+
+      // return this.transformToResponseDto(licencia);
+
+      // ✅ NUEVO: Usar transacción para crear licencia Y asignar rol CONDUCTOR
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. Crear la licencia
+      const licencia = await tx.licenciaConducir.create({
         data,
         include: {
           usuario: {
@@ -77,12 +95,102 @@ export class LicenciasConducirService {
         }
       });
 
-      return this.transformToResponseDto(licencia);
+      // 2. Asignar rol CONDUCTOR automáticamente
+      await this.asignarRolConductorAutomaticamente(tx, createLicenciaConducirDto.usuarioId);
+
+      return licencia;
+    });
+
+    return this.transformToResponseDto(result);
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
         throw error;
       }
       throw new BadRequestException('Error al crear la licencia de conducir');
+    }
+  }
+
+  /*
+    ***************************************************************************************
+    Metodo: Asignar rol CONDUCTOR automáticamente - asignarRolConductorAutomaticamente
+    Fecha: 15-10-2025
+    Descripcion: 
+    Autor: James Torres
+    ***************************************************************************************
+  */
+  private async asignarRolConductorAutomaticamente(
+    tx: any, // Prisma transaction client
+    usuarioId: number
+  ): Promise<void> {
+    try {
+      // 1. Buscar el rol CONDUCTOR
+      const rolConductor = await tx.rol.findFirst({
+        where: {
+          nombre: 'CONDUCTOR',
+          activo: true
+        }
+      });
+
+      if (!rolConductor) {
+        console.warn('⚠️ No se encontró el rol CONDUCTOR activo en la base de datos');
+        return;
+      }
+
+      // 2. Verificar si el usuario ya tiene el rol CONDUCTOR activo
+      const tieneRolConductor = await tx.usuarioRol.findFirst({
+        where: {
+          usuarioId: usuarioId,
+          rolId: rolConductor.id,
+          activo: true
+        }
+      });
+
+      // Si ya tiene el rol, no hacer nada
+      if (tieneRolConductor) {
+        console.log(`✅ Usuario ${usuarioId} ya tiene el rol CONDUCTOR asignado`);
+        return;
+      }
+
+      // 3. Verificar si tuvo el rol pero fue revocado (activo: false)
+      const rolRevocado = await tx.usuarioRol.findFirst({
+        where: {
+          usuarioId: usuarioId,
+          rolId: rolConductor.id,
+          activo: false
+        }
+      });
+
+      if (rolRevocado) {
+        // Reactivar el rol existente
+        await tx.usuarioRol.update({
+          where: { id: rolRevocado.id },
+          data: {
+            activo: true,
+            fechaAsignacion: new Date(),
+            fechaRevocacion: null
+          }
+        });
+
+        console.log(`✅ Rol CONDUCTOR reactivado para usuario ${usuarioId}`);
+      } else {
+        // 4. Crear nueva asignación de rol
+        await tx.usuarioRol.create({
+          data: {
+            usuarioId: usuarioId,
+            rolId: rolConductor.id,
+            fechaAsignacion: new Date(),
+            activo: true,
+            // asignadoPorId puede ser null (auto-asignado por el sistema)
+            asignadoPorId: null
+          }
+        });
+
+        console.log(`✅ Rol CONDUCTOR asignado automáticamente al usuario ${usuarioId}`);
+      }
+    } catch (error) {
+      // No lanzar error para no interrumpir la creación de la licencia
+      // Solo loguear el problema
+      console.error('❌ Error al asignar rol CONDUCTOR automáticamente:', error);
     }
   }
 
@@ -95,96 +203,96 @@ export class LicenciasConducirService {
       // Construir filtros dinámicos
       const where: any = {};
 
-    if (search) {
-      where.OR = [
-        {
-          numeroLicencia: {
-            contains: search,
-            mode: 'insensitive'
+      if (search) {
+        where.OR = [
+          {
+            numeroLicencia: {
+              contains: search,
+              mode: 'insensitive'
+            }
+          },
+          {
+            categoria: {
+              contains: search,
+              mode: 'insensitive'
+            }
+          },
+          {
+            usuario: {
+              OR: [
+                {
+                  nombres: {
+                    contains: search,
+                    mode: 'insensitive'
+                  }
+                },
+                {
+                  apellidos: {
+                    contains: search,
+                    mode: 'insensitive'
+                  }
+                },
+                {
+                  dni: {
+                    contains: search,
+                    mode: 'insensitive'
+                  }
+                },
+                {
+                  codigoEmpleado: {
+                    contains: search,
+                    mode: 'insensitive'
+                  }
+                }
+              ]
+            }
           }
-        },
-        {
-          categoria: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        },
-        {
-          usuario: {
-            OR: [
-              {
-                nombres: {
-                  contains: search,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                apellidos: {
-                  contains: search,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                dni: {
-                  contains: search,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                codigoEmpleado: {
-                  contains: search,
-                  mode: 'insensitive'
-                }
-              }
-            ]
-          }
-        }
-      ];
-    }
-
-    if (usuarioId) {
-      where.usuarioId = usuarioId;
-    }
-
-    if (categoria) {
-      where.categoria = categoria;
-    }
-
-    if (activo !== undefined) {
-      where.activo = activo;
-    }
-
-    // Filtros por estado de vigencia
-    const today = new Date();
-    const in90Days = new Date();
-    in90Days.setDate(today.getDate() + 90);
-
-    if (soloVencidas) {
-      where.fechaExpiracion = {
-        lt: today
-      };
-    }
-
-    if (proximasVencer) {
-      where.fechaExpiracion = {
-        gte: today,
-        lte: in90Days
-      };
-    }
-
-    if (estadoVigencia) {
-      switch (estadoVigencia) {
-        case 'VENCIDA':
-          where.fechaExpiracion = { lt: today };
-          break;
-        case 'PRÓXIMO_VENCIMIENTO':
-          where.fechaExpiracion = { gte: today, lte: in90Days };
-          break;
-        case 'VIGENTE':
-          where.fechaExpiracion = { gt: in90Days };
-          break;
+        ];
       }
-    }
+
+      if (usuarioId) {
+        where.usuarioId = usuarioId;
+      }
+
+      if (categoria) {
+        where.categoria = categoria;
+      }
+
+      if (activo !== undefined) {
+        where.activo = activo;
+      }
+
+      // Filtros por estado de vigencia
+      const today = new Date();
+      const in90Days = new Date();
+      in90Days.setDate(today.getDate() + 90);
+
+      if (soloVencidas) {
+        where.fechaExpiracion = {
+          lt: today
+        };
+      }
+
+      if (proximasVencer) {
+        where.fechaExpiracion = {
+          gte: today,
+          lte: in90Days
+        };
+      }
+
+      if (estadoVigencia) {
+        switch (estadoVigencia) {
+          case 'VENCIDA':
+            where.fechaExpiracion = { lt: today };
+            break;
+          case 'PRÓXIMO_VENCIMIENTO':
+            where.fechaExpiracion = { gte: today, lte: in90Days };
+            break;
+          case 'VIGENTE':
+            where.fechaExpiracion = { gt: in90Days };
+            break;
+        }
+      }
 
       // Contar total de registros
       const total = await this.prisma.licenciaConducir.count({ where });
@@ -302,15 +410,15 @@ export class LicenciasConducirService {
       // Validar fechas si se están actualizando
       const fechaEmision = updateLicenciaConducirDto.fechaEmision || existingLicencia.fechaEmision.toISOString().split('T')[0];
       const fechaExpiracion = updateLicenciaConducirDto.fechaExpiracion || existingLicencia.fechaExpiracion.toISOString().split('T')[0];
-      
+
       this.validateFechas(fechaEmision, fechaExpiracion);
 
       // Verificar conflictos de categoría en el mismo usuario (si se están actualizando ambos)
       const targetUsuarioId = updateLicenciaConducirDto.usuarioId || existingLicencia.usuarioId;
       const targetCategoria = updateLicenciaConducirDto.categoria || existingLicencia.categoria;
 
-      if ((updateLicenciaConducirDto.usuarioId || updateLicenciaConducirDto.categoria) && 
-          (targetUsuarioId !== existingLicencia.usuarioId || targetCategoria !== existingLicencia.categoria)) {
+      if ((updateLicenciaConducirDto.usuarioId || updateLicenciaConducirDto.categoria) &&
+        (targetUsuarioId !== existingLicencia.usuarioId || targetCategoria !== existingLicencia.categoria)) {
         const conflictingLicencia = await this.prisma.licenciaConducir.findFirst({
           where: {
             usuarioId: targetUsuarioId,
@@ -327,7 +435,7 @@ export class LicenciasConducirService {
 
       // Preparar datos para actualizar
       const data: any = { ...updateLicenciaConducirDto };
-      
+
       // Convertir fechas a formato Date para Prisma
       if (data.fechaEmision) {
         data.fechaEmision = new Date(data.fechaEmision);
@@ -448,9 +556,9 @@ export class LicenciasConducirService {
 
   async findByUsuario(usuarioId: number): Promise<LicenciaConducirResponseDto[]> {
     const licencias = await this.prisma.licenciaConducir.findMany({
-      where: { 
+      where: {
         usuarioId,
-        activo: true 
+        activo: true
       },
       include: {
         usuario: {
@@ -528,9 +636,9 @@ export class LicenciasConducirService {
 
   async findByCategoria(categoria: string): Promise<LicenciaConducirResponseDto[]> {
     const licencias = await this.prisma.licenciaConducir.findMany({
-      where: { 
+      where: {
         categoria,
-        activo: true 
+        activo: true
       },
       include: {
         usuario: {
@@ -643,7 +751,7 @@ export class LicenciasConducirService {
 
   private getEstadoVigencia(fechaExpiracion: Date): string {
     const diasRestantes = this.calculateDaysRemaining(fechaExpiracion);
-    
+
     if (diasRestantes < 0) {
       return 'VENCIDA';
     } else if (diasRestantes <= 90) {

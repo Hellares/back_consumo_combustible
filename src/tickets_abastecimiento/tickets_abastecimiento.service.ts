@@ -821,6 +821,118 @@ export class TicketsAbastecimientoService {
     }
   }
 
+  /*
+    ***************************************************************************************
+    Metodo: Obtener el kilometraje de la unidad
+    Fecha: 15-10-2025
+    Descripcion: 
+    Autor: 
+    ***************************************************************************************
+  */
+
+  async getUltimoTicketUnidad(unidadId: number) {
+  // Validar que la unidad existe
+  const unidad = await this.prisma.unidad.findUnique({
+    where: { id: unidadId, activo: true },
+    select: {
+      id: true,
+      placa: true,
+      marca: true,
+      modelo: true,
+      tipoCombustible: true,
+      capacidadTanque: true
+    }
+  });
+
+  if (!unidad) {
+    throw new NotFoundException(`Unidad con ID ${unidadId} no encontrada o inactiva`);
+  }
+
+  // Buscar último ticket de esta unidad
+  const ultimoTicket = await this.prisma.ticketAbastecimiento.findFirst({
+    where: { 
+      unidadId,
+      // Opcional: solo considerar tickets aprobados o concluidos
+      // estado: { nombre: { in: ['APROBADO', 'CONCLUIDO'] } }
+    },
+    orderBy: [
+      { fecha: 'desc' },
+      { hora: 'desc' }
+    ],
+    select: {
+      id: true,
+      numeroTicket: true,
+      fecha: true,
+      hora: true,
+      kilometrajeActual: true,
+      kilometrajeAnterior: true,
+      precintoNuevo: true,
+      tipoCombustible: true,
+      cantidad: true,
+      estado: {
+        select: {
+          id: true,
+          nombre: true,
+          color: true
+        }
+      },
+      conductor: {
+        select: {
+          id: true,
+          nombres: true,
+          apellidos: true
+        }
+      },
+      grifo: {
+        select: {
+          id: true,
+          nombre: true
+        }
+      }
+    }
+  });
+
+  if (!ultimoTicket) {
+    // Si no hay tickets previos, retornar solo info de la unidad
+    return {
+      unidad,
+      ultimoTicket: null,
+      mensaje: 'No hay tickets previos para esta unidad. Primer abastecimiento.'
+    };
+  }
+
+  // Formatear respuesta
+  const kmActual = Number(ultimoTicket.kilometrajeActual);
+  const kmAnterior = ultimoTicket.kilometrajeAnterior 
+    ? Number(ultimoTicket.kilometrajeAnterior) 
+    : null;
+
+  return {
+    unidad,
+    ultimoTicket: {
+      id: ultimoTicket.id,
+      numeroTicket: ultimoTicket.numeroTicket,
+      fecha: ultimoTicket.fecha?.toISOString().split('T')[0],
+      hora: ultimoTicket.hora?.toISOString().split('T')[1]?.split('.')[0],
+      kilometrajeActual: kmActual,
+      kilometrajeAnterior: kmAnterior,
+      diferenciaKilometraje: kmAnterior ? kmActual - kmAnterior : 0,
+      precintoNuevo: ultimoTicket.precintoNuevo,
+      tipoCombustible: ultimoTicket.tipoCombustible,
+      cantidad: Number(ultimoTicket.cantidad),
+      estado: ultimoTicket.estado,
+      conductor: ultimoTicket.conductor,
+      grifo: ultimoTicket.grifo
+    },
+    sugerencias: {
+      // El kilometraje anterior del NUEVO ticket debe ser >= al actual del último
+      kilometrajeAnteriorSugerido: kmActual,
+      // El precinto anterior del NUEVO ticket es el nuevo del último
+      precintoAnteriorSugerido: ultimoTicket.precintoNuevo
+    }
+  };
+}
+
   /**
    * Validar que el precinto sea único
    */

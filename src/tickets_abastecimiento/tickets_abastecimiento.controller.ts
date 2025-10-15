@@ -57,7 +57,7 @@ import { JwtRole } from '@/auth/jwt/jwt-role';
 // @UseGuards(JwtAuthGuard)
 @Controller('tickets-abastecimiento')
 export class TicketsAbastecimientoController {
-  constructor(private readonly ticketsService: TicketsAbastecimientoService) {}
+  constructor(private readonly ticketsService: TicketsAbastecimientoService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
@@ -304,6 +304,55 @@ export class TicketsAbastecimientoController {
     return this.ticketsService.findByConductor(conductorId, limit);
   }
 
+
+  /*
+    ***************************************************************************************
+    Metodo: Obtener ultimo kilometraje
+    Fecha: 15-10-2025
+    Descripcion: 
+    Autor: 
+    ***************************************************************************************
+  */
+
+  @Get('unidad/:unidadId/ultimo')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Obtener último ticket de abastecimiento de una unidad',
+    description: 'Retorna el último ticket registrado para pre-llenar datos en nuevo ticket'
+  })
+  @ApiParam({
+    name: 'unidadId',
+    description: 'ID de la unidad',
+    example: 5
+  })
+  @ApiOkResponse({
+    description: 'Último ticket encontrado',
+    schema: {
+      example: {
+        id: 123,
+        numeroTicket: 'TKT-2025-00123',
+        fecha: '2025-01-15',
+        kilometrajeActual: 125420.50,
+        precintoNuevo: 'PR-2024-001234',
+        tipoCombustible: 'DIESEL',
+        cantidad: 45.5,
+        unidad: {
+          id: 5,
+          placa: 'ABC-123',
+          capacidadTanque: 50
+        }
+      }
+    }
+  })
+  @ApiNotFoundResponse({
+    description: 'No se encontraron tickets previos para esta unidad'
+  })
+  async getUltimoTicketUnidad(
+    @Param('unidadId', ParseIntPipe) unidadId: number
+  ) {
+    return this.ticketsService.getUltimoTicketUnidad(unidadId);
+  }
+
   @Get(':id')
   // @UseGuards(JwtPermissionsGuard)
   // @Permissions({ resource: 'tickets_abastecimiento', actions: ['read'] })
@@ -494,7 +543,7 @@ export class TicketsAbastecimientoController {
       orderBy: 'fecha' as any,
       orderDirection: 'asc' as any
     };
-    
+
     const result = await this.ticketsService.findAll(queryDto);
     return result.data; // Retornar solo los tickets, no la estructura paginada
   }
@@ -520,7 +569,7 @@ export class TicketsAbastecimientoController {
           type: 'object',
           properties: {
             aprobados: { type: 'number', example: 8 },
-            errores: { 
+            errores: {
               type: 'array',
               items: {
                 type: 'object',
@@ -537,38 +586,38 @@ export class TicketsAbastecimientoController {
   })
   async aprobarLote(
     @Body('ids') ids: number[],
-  @Request() req: any
+    @Request() req: any
   ) {
     const aprobadoPorId = req.user.id;
     // Aceptar tanto ticketIds como ids para mayor flexibilidad
-    
+
 
     // Validaciones
-  if (!Array.isArray(ids) || ids.length === 0) {
-    throw new BadRequestException('Debe proporcionar al menos un ID de ticket');
-  }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Debe proporcionar al menos un ID de ticket');
+    }
 
-  if (ids.length > 20) {
-    throw new BadRequestException('No se pueden aprobar más de 20 tickets a la vez');
-  }
+    if (ids.length > 20) {
+      throw new BadRequestException('No se pueden aprobar más de 20 tickets a la vez');
+    }
     const resultados = {
-    exitosos: 0,
-    fallidos: 0,
-    errores: []
-  };
+      exitosos: 0,
+      fallidos: 0,
+      errores: []
+    };
 
     for (const ticketId of ids) {
-    try {
-      await this.ticketsService.aprobar(ticketId, aprobadoPorId);
-      resultados.exitosos++;
-    } catch (error) {
-      resultados.fallidos++;
-      resultados.errores.push({
-        ticketId,
-        error: error.message
-      });
+      try {
+        await this.ticketsService.aprobar(ticketId, aprobadoPorId);
+        resultados.exitosos++;
+      } catch (error) {
+        resultados.fallidos++;
+        resultados.errores.push({
+          ticketId,
+          error: error.message
+        });
+      }
     }
-  }
 
     return resultados;
   }
@@ -600,7 +649,7 @@ export class TicketsAbastecimientoController {
     @Query('estadoId', new ParseIntPipe({ optional: true })) estadoId?: number
   ) {
     const solicitadoPorId = req.user.id;
-    
+
     const queryDto: QueryTicketDto = {
       page: 1,
       limit: Math.min(limit, 100),
@@ -626,8 +675,8 @@ export class TicketsAbastecimientoController {
 
   @Get('estado/:estadoNombre')
   async findByEstado(
-  @Param('estadoNombre') estadoNombre: string,
-  @Query() queryDto: QueryTicketDto
+    @Param('estadoNombre') estadoNombre: string,
+    @Query() queryDto: QueryTicketDto
   ) {
     return this.ticketsService.findByEstado(estadoNombre, queryDto);
   }
