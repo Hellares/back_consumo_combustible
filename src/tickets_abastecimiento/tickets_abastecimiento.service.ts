@@ -40,8 +40,8 @@ export class TicketsAbastecimientoService {
       );
     }
 
-    // 3. Validar precinto único
-    await this.validatePrecintoUnico(createTicketDto.precintoNuevo);
+    //! 3. Validar precinto único
+    // await this.validatePrecintoUnico(createTicketDto.precintoNuevo);
 
     // 4. Generar número de ticket
     const numeroTicket = await this.generateNumeroTicket();
@@ -311,18 +311,7 @@ export class TicketsAbastecimientoService {
   /**
    * Obtener ticket por ID
    */
-  // async findOne(id: number): Promise<TicketAbastecimientoResponseDto> {
-  //   const ticket = await this.prisma.ticketAbastecimiento.findUnique({
-  //     where: { id },
-  //     include: this.getIncludeOptions()
-  //   });
-
-  //   if (!ticket) {
-  //     throw new NotFoundException(`Ticket con ID ${id} no encontrado`);
-  //   }
-
-  //   return this.transformToResponseDto(ticket);
-  // }
+  
   async findOne(id: number) {
   const ticket = await this.prisma.ticketAbastecimiento.findUnique({
     where: { id },
@@ -472,11 +461,11 @@ export class TicketsAbastecimientoService {
       throw new UnauthorizedException('Solo el solicitante puede modificar este ticket');
     }
 
-    // Validar precinto si se está actualizando
-    if (updateTicketDto.precintoNuevo && 
-        updateTicketDto.precintoNuevo !== existingTicket.precintoNuevo) {
-      await this.validatePrecintoUnico(updateTicketDto.precintoNuevo);
-    }
+    //! Validar precinto si se está actualizando
+    // if (updateTicketDto.precintoNuevo && 
+    //     updateTicketDto.precintoNuevo !== existingTicket.precintoNuevo) {
+    //   await this.validatePrecintoUnico(updateTicketDto.precintoNuevo);
+    // }
 
     // Validar kilometraje si se está actualizando
     if (updateTicketDto.kilometrajeActual || updateTicketDto.kilometrajeAnterior) {
@@ -933,18 +922,23 @@ export class TicketsAbastecimientoService {
   };
 }
 
-  /**
-   * Validar que el precinto sea único
-   */
-  private async validatePrecintoUnico(precintoNuevo: string) {
-    const existingPrecinto = await this.prisma.ticketAbastecimiento.findFirst({
-      where: { precintoNuevo: precintoNuevo.toUpperCase() }
-    });
+  /*
+    ***************************************************************************************
+    Metodo: validatePrecintoUnico //!Validar que el precinto sea único
+    Fecha: 15-10-2025
+    Descripcion: 
+    Autor: 
+    ***************************************************************************************
+  */
+  // private async validatePrecintoUnico(precintoNuevo: string) {
+  //   const existingPrecinto = await this.prisma.ticketAbastecimiento.findFirst({
+  //     where: { precintoNuevo: precintoNuevo.toUpperCase() }
+  //   });
 
-    if (existingPrecinto) {
-      throw new ConflictException(`Ya existe un ticket con el precinto ${precintoNuevo}`);
-    }
-  }
+  //   if (existingPrecinto) {
+  //     throw new ConflictException(`Ya existe un ticket con el precinto ${precintoNuevo}`);
+  //   }
+  // }
 
   /**
    * Generar número único de ticket

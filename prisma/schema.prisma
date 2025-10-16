@@ -917,7 +917,7 @@ model TicketAbastecimiento {
   rutaId                 Int?      @map("ruta_id")
   kilometrajeActual      Decimal   @map("kilometraje_actual") @db.Decimal(10, 2)
   kilometrajeAnterior    Decimal?  @map("kilometraje_anterior") @db.Decimal(10, 2)
-  precintoNuevo          String    @map("precinto_nuevo") @db.VarChar(50)
+  precintoNuevo          String?    @map("precinto_nuevo") @db.VarChar(50)
   tipoCombustible        String    @default("DIESEL") @map("tipo_combustible") @db.VarChar(30)
   cantidad               Decimal   @db.Decimal(10, 3)
   observacionesSolicitud String?   @map("observaciones_solicitud")

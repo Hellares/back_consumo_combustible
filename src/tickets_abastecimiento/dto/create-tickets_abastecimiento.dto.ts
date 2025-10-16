@@ -21,7 +21,8 @@ export enum TipoCombustibleTicket {
   GASOLINA_90 = 'GASOLINA_90',
   GASOLINA_95 = 'GASOLINA_95',
   GASOLINA_97 = 'GASOLINA_97',
-  GAS_NATURAL = 'GAS_NATURAL'
+  GAS_NATURAL = 'GAS_NATURAL',
+  ELECTRICO = 'ELECTRICO'
 }
 
 export class CreateTicketAbastecimientoDto {
@@ -128,13 +129,23 @@ export class CreateTicketAbastecimientoDto {
   @ApiProperty({
     description: 'Número del precinto nuevo que se colocará',
     example: 'PR-2024-001234',
-    maxLength: 50
+    maxLength: 50,
+    required: false,
+    default: '-',
   })
-  @IsNotEmpty({ message: 'El precinto nuevo es obligatorio' })
+  //! @IsNotEmpty({ message: 'El precinto nuevo es obligatorio' })
+  @IsOptional()
   @IsString({ message: 'El precinto nuevo debe ser una cadena de texto' })
   @MaxLength(50, { message: 'El precinto nuevo no puede exceder 50 caracteres' })
-  @Transform(({ value }) => value?.trim()?.toUpperCase())
-  precintoNuevo: string;
+  // @Transform(({ value }) => value?.trim()?.toUpperCase())
+  @Transform(({ value }) => {
+    // Si no viene nada o viene vacío, devuelve '-'
+    if (value === undefined || value === null || value.trim() === '') {
+      return '-';
+    }
+    return value.trim().toUpperCase();
+  })
+  precintoNuevo: string = '-';
 
   @ApiProperty({
     description: 'Tipo de combustible solicitado',
