@@ -16,6 +16,7 @@ import { TurnosModule } from './turnos/turnos.module';
 import { TicketsAbastecimientoModule } from './tickets_abastecimiento/tickets_abastecimiento.module';
 import { ArchivosModule } from './archivos/archivos.module';
 import { DetallesAbastecimientoModule } from './detalles-abastecimiento/detalles-abastecimiento.module';
+import { ReportesModule } from './reportes/reportes.module';
 
 @Module({
   imports: [
@@ -23,9 +24,9 @@ import { DetallesAbastecimientoModule } from './detalles-abastecimiento/detalles
       isGlobal: true,
       envFilePath: '.env',
     }),
-    PrismaModule, 
-    AuthModule, 
-    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule, TurnosModule, TicketsAbastecimientoModule, ArchivosModule, DetallesAbastecimientoModule,
+    PrismaModule,
+    AuthModule,
+    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule, TurnosModule, TicketsAbastecimientoModule, ArchivosModule, DetallesAbastecimientoModule, ReportesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
