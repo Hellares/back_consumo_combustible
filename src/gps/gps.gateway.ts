@@ -58,7 +58,7 @@ interface ClientInfo {
 @WebSocketGateway({
   namespace: '/gps',
   cors: {
-    origin: '*', // ⚠️ En producción, especificar origins permitidos
+    origin: process.env.CORS_ORIGIN?.split(',') || '*',
     credentials: true,
   },
   transports: ['websocket', 'polling'], // Soportar ambos
