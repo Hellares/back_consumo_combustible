@@ -11,7 +11,9 @@ import { JwtPermissionsGuard } from './jwt/jwt-permissions.guard';
     PrismaModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '3600s' },
+      signOptions: { 
+        expiresIn: '24h' // ✅ String literal fijo
+      },
     }),
   ],
   controllers: [AuthController],

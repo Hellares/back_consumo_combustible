@@ -179,6 +179,8 @@ model Usuario {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
+  unidadAsignada  Int?      @map("unidad_asignada")
+
   // Relaciones existentes
   roles                         UsuarioRol[]
   licenciasConducir             LicenciaConducir[]
@@ -222,6 +224,7 @@ model Usuario {
 
   historialItinerarios   ItinerarioHistorial[] @relation("ItinerarioHistorialModificador")
   alertasDesvioResueltas AlertaDesvio[]        @relation("AlertaDesvioResolutor")
+  unidad          Unidad?   @relation(fields: [unidadAsignada], references: [id])
 
   @@map("usuarios")
 }
@@ -312,6 +315,8 @@ model Unidad {
 
   //para gps
   ubicacionesGPS UbicacionGPS[]
+  dispositivosGPS DispositivoGPS[]
+  conductoresAsignados Usuario[]
 
   @@map("unidades")
 }
@@ -956,7 +961,7 @@ model DetalleAbastecimiento {
   id                       Int      @id @default(autoincrement())
   ticketId                 Int      @unique @map("ticket_id")
   
-  // 🆕 CANTIDAD REAL ABASTECIDA (puede diferir de la solicitada)
+  // CANTIDAD REAL ABASTECIDA (puede diferir de la solicitada)
   cantidadAbastecida       Decimal? @map("cantidad_abastecida") @db.Decimal(10, 3)
   motivoDiferencia         String?  @map("motivo_diferencia") @db.VarChar(200) // Si difiere de lo solicitado
   
@@ -1246,6 +1251,14 @@ model UbicacionGPS {
   bateria   Int? // Porcentaje batería
   señalGPS String? @map("senal_gps") @db.VarChar(20) // "EXCELENTE", "BUENA", "REGULAR", "POBRE"
 
+  dispositivoId    String?  @map("dispositivo_id") @db.VarChar(100) // IMEI o deviceId
+  appVersion       String?  @map("app_version") @db.VarChar(20)
+  sistemaOperativo String?  @map("sistema_operativo") @db.VarChar(50)
+  modeloDispositivo String? @map("modelo_dispositivo") @db.VarChar(100)
+
+  // Metadata flexible (JSON para datos específicos)
+  metadata Json? // Diferentes según proveedor
+
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relaciones
@@ -1253,10 +1266,56 @@ model UbicacionGPS {
   ejecucion     EjecucionItinerario? @relation(fields: [ejecucionId], references: [id], onDelete: SetNull)
   registroTramo RegistroTramo?       @relation(fields: [registroTramoId], references: [id], onDelete: SetNull)
 
-  @@index([unidadId, fechaHora])
+  @@index([unidadId, fechaHora(sort: Desc)])
   @@index([ejecucionId, fechaHora])
-  @@index([fechaHora]) // Para consultas de rango temporal
+  @@index([fechaHora(sort: Desc)])
+  @@index([proveedor, fechaHora]) // Nuevo índice
   @@map("ubicaciones_gps")
+}
+
+//NUEVA TABLA: Gestión de Dispositivos GPS Vehiculares
+model DispositivoGPS {
+  id                Int      @id @default(autoincrement())
+  unidadId          Int      @map("unidad_id")
+  
+  // Identificación del dispositivo
+  imei              String?  @unique @db.VarChar(20)
+  numeroSerie       String?  @unique @map("numero_serie") @db.VarChar(50)
+  marca             String   @db.VarChar(50)
+  modelo            String   @db.VarChar(50)
+  tipo              String   @db.VarChar(30) // "OBD", "HARDWIRED", "PORTABLE", "TRACKER"
+  
+  // Configuración de transmisión
+  frecuenciaEnvioSegundos Int     @default(10) @map("frecuencia_envio_segundos")
+  modoAhorroBateria       Boolean @default(false) @map("modo_ahorro_bateria")
+  enviarSoloEnMovimiento  Boolean @default(false) @map("enviar_solo_en_movimiento")
+  
+  // Estado y conectividad
+  estado            String    @default("ACTIVO") @db.VarChar(20) // ACTIVO, INACTIVO, EN_MANTENIMIENTO, DESINSTALADO
+  fechaInstalacion  DateTime  @map("fecha_instalacion") @db.Date
+  fechaUltimaSenal  DateTime? @map("fecha_ultima_senal")
+  
+  // Información técnica
+  firmwareVersion   String?  @map("firmware_version") @db.VarChar(20)
+  simCard           String?  @map("sim_card") @db.VarChar(20)
+  operadorMovil     String?  @map("operador_movil") @db.VarChar(50)
+  
+  // Configuración avanzada (JSON flexible)
+  configuracion Json? // Configuraciones específicas del dispositivo
+  
+  // Auditoría
+  observaciones String?
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  
+  // Relaciones
+  unidad Unidad @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  
+  @@index([unidadId])
+  @@index([estado])
+  @@index([imei])
+  @@map("dispositivos_gps")
 }
 
 // ==============================
