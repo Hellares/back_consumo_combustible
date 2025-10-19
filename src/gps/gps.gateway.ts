@@ -55,13 +55,38 @@ interface ClientInfo {
  * - Broadcasting selectivo según permisos
  */
 // @UseGuards(WsJwtGuard)
+// @WebSocketGateway({
+//   namespace: '/gps',
+//   cors: {
+//     origin: process.env.CORS_ORIGIN?.split(',') || '*',
+//     credentials: true,
+//   },
+//   transports: ['websocket', 'polling'], // Soportar ambos
+// })
 @WebSocketGateway({
   namespace: '/gps',
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || '*',
+    origin: (origin, callback) => {
+      const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || ['*'];
+      
+      // Permitir requests sin origin (mobile apps, Postman)
+      if (!origin) return callback(null, true);
+      
+      // Verificar si el origin está permitido
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST'],
   },
   transports: ['websocket', 'polling'], // Soportar ambos
+  pingTimeout: 60000, // ✅ NUEVO: timeout más largo
+  pingInterval: 25000, // ✅ NUEVO: keep-alive
+  maxHttpBufferSize: 1e6, // 1MB
+  allowEIO3: true, // Compatibilidad con clientes antiguos
 })
 export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

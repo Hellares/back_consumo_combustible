@@ -116,16 +116,26 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+  });
+
+  const configService = app.get(ConfigService);
+  const port = configService.get('PORT') || configService.get('APP_PORT') || 3080;
+
+  const corsOrigins = configService.get('CORS_ORIGIN')?.split(',') || '*';
 
   // CORS (permitir frontend)
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*', // En producción: especificar origins
+    // origin: process.env.CORS_ORIGIN || '*', // En producción: especificar origins
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // Prefijo global de API
@@ -181,7 +191,7 @@ async function bootstrap() {
     },
   });
 
-  const port = process.env.PORT || 3000;
+  // const port = process.env.PORT || 3000;
   await app.listen(port);
 
   console.log('');
@@ -201,6 +211,8 @@ async function bootstrap() {
   console.log('║   ✅ Soporte Híbrido (Mobile + Device GPS)               ║');
   console.log('╚═══════════════════════════════════════════════════════════╝');
   console.log('');
+  console.log(`🌍 Entorno: ${process.env.NODE_ENV}`);
+  console.log(`🔗 CORS Origins: ${corsOrigins}`);
 }
 
 bootstrap();
