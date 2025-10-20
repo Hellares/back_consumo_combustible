@@ -121,7 +121,9 @@ import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   // const app = await NestFactory.create(AppModule);
   const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+    logger: process.env.NODE_ENV === 'production'
+      ? ['error', 'warn', 'log']  // Solo errores y warnings en producción
+      : ['error', 'warn', 'log', 'debug', 'verbose'], // Todo en desarrollo
   });
 
   const configService = app.get(ConfigService);
@@ -131,7 +133,6 @@ async function bootstrap() {
 
   // CORS (permitir frontend)
   app.enableCors({
-    // origin: process.env.CORS_ORIGIN || '*', // En producción: especificar origins
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

@@ -17,10 +17,14 @@ services:
       JWT_EXPIRES_IN: "1d"
       DEFAULT_ROLE_NAME: "USER"
       CORS_ORIGIN: "https://combustible-api.syncronize.net.pe,https://syncronize.net.pe,https://www.syncronize.net.pe,https://api.syncronize.net.pe,http://localhost:3080,http://localhost:8080"
-      WS_CORS_ORIGIN: "https://combustible-api.syncronize.net.pe"
       CLOUDINARY_CLOUD_NAME: "doglf2gsy"
       CLOUDINARY_API_KEY: "485335513153247"
       CLOUDINARY_API_SECRET: "rVefITbGKMyrl9G2pmliO-uaAko"
+
+      #Configuración de WebSocket
+      WS_PING_TIMEOUT: "60000"
+      WS_PING_INTERVAL: "25000"
+      WS_MAX_HTTP_BUFFER_SIZE: "1000000"
     
     ports:
       - "3080:3080"
@@ -33,11 +37,22 @@ services:
       - elastika-network
 
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3080/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Límites de recursos
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
 
 networks:
   elastika-network:

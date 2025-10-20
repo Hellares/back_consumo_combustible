@@ -138,6 +138,8 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   async handleConnection(client: Socket) {
     this.logger.log(`🔌 [Gateway] Cliente intentando conectar: ${client.id}`);
+    this.logger.debug(`🔍 [Gateway] IP: ${client.handshake.address}`);
+    this.logger.debug(`🔍 [Gateway] User-Agent: ${client.handshake.headers['user-agent']}`);
     
     try {
       // 🔥 AUTENTICACIÓN MANUAL (ya que el guard no se ejecuta aquí)
