@@ -68,10 +68,10 @@ interface ClientInfo {
   cors: {
     origin: (origin, callback) => {
       const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || ['*'];
-      
+
       // Permitir requests sin origin (mobile apps, Postman)
       if (!origin) return callback(null, true);
-      
+
       // Verificar si el origin está permitido
       if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -119,7 +119,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   afterInit(server: Server) {
     this.logger.log('🔌 GPS WebSocket Gateway inicializado en namespace: /gps');
-    
+
     // Iniciar timer de batch broadcasting
     this.startBatchTimer();
   }
@@ -140,13 +140,13 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     this.logger.log(`🔌 [Gateway] Cliente intentando conectar: ${client.id}`);
     this.logger.debug(`🔍 [Gateway] IP: ${client.handshake.address}`);
     this.logger.debug(`🔍 [Gateway] User-Agent: ${client.handshake.headers['user-agent']}`);
-    
+
     try {
-      // 🔥 AUTENTICACIÓN MANUAL (ya que el guard no se ejecuta aquí)
+      // 🔥 AUTENTICACIÓN MANUAL
       const token = this.extractTokenFromHandshake(client);
-      
+
       this.logger.debug(`🔍 [Gateway] Token recibido: ${token ? 'SÍ' : 'NO'}`);
-      
+
       if (!token) {
         this.logger.error(`❌ [Gateway] No hay token`);
         client.emit('error', { message: 'Token no proporcionado' });
@@ -158,7 +158,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
       // Verificar token
       this.logger.debug(`🔐 [Gateway] Verificando token...`);
-      
+
       const payload = await this.jwtService.verifyAsync(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
@@ -198,7 +198,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
       this.connectedClients.set(client.id, clientInfo);
 
-      // Guardar en client.data para usar en otros handlers
+      // Guardar en client.data
       client.data.user = {
         id: user.id,
         dni: user.dni,
@@ -221,13 +221,32 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
         `Roles: ${clientInfo.roles.join(', ')}`
       );
 
-      // Enviar confirmación de conexión
+      // ✅ ORDEN CORRECTO: Primero connection:status, luego authenticated
+      this.logger.log(
+        `✅ [Gateway] Cliente autenticado exitosamente: ${client.id} | Usuario: ${clientInfo.userDni}`
+      );
+
+      // 1️⃣ Emitir estado de conexión (para compatibilidad)
       client.emit(TrackingEvents.CONNECTION_STATUS, {
         connected: true,
         userId: clientInfo.userId,
         roles: clientInfo.roles,
         timestamp: new Date().toISOString(),
       });
+
+      // 2️⃣ Emitir evento de autenticación completada (SEÑAL PARA SUSCRIBIRSE)
+      client.emit('authenticated', {
+        success: true,
+        userId: clientInfo.userId,
+        dni: clientInfo.userDni,
+        roles: clientInfo.roles,
+        unidadAsignada: clientInfo.unidadAsignada,
+        timestamp: new Date().toISOString(),
+      });
+
+      this.logger.log(
+        `🎯 [Gateway] Eventos de autenticación emitidos - Cliente listo para suscripciones`
+      );
 
       // Si es conductor con unidad asignada, notificar que está online
       if (clientInfo.unidadAsignada) {
@@ -241,7 +260,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     } catch (error) {
       this.logger.error(`❌ [Gateway] Error en conexión: ${error.message}`);
       this.logger.error(`❌ [Gateway] Stack:`, error.stack);
-      
+
       if (error.name === 'TokenExpiredError') {
         client.emit('error', { message: 'Token expirado' });
       } else if (error.name === 'JsonWebTokenError') {
@@ -249,7 +268,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
       } else {
         client.emit('error', { message: 'Error de autenticación' });
       }
-      
+
       client.disconnect();
     }
   }
@@ -263,7 +282,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     this.logger.debug(`🔍 [Gateway] handshake.auth:`, client.handshake.auth);
     this.logger.debug(`🔍 [Gateway] handshake.headers.authorization:`, client.handshake.headers?.authorization);
     this.logger.debug(`🔍 [Gateway] handshake.query.token:`, client.handshake.query?.token);
-    
+
     // 1. Desde handshake.auth (usado por Flutter)
     const tokenFromAuth = client.handshake.auth?.token;
     if (tokenFromAuth) {
@@ -295,7 +314,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   handleDisconnect(client: Socket) {
     const clientInfo = this.connectedClients.get(client.id);
-    
+
     if (clientInfo) {
       this.logger.log(
         `👋 [Gateway] Cliente desconectado: ${client.id} | ` +
@@ -407,13 +426,13 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
     } catch (error) {
       this.logger.error(`❌ Error procesando ubicación: ${error.message}`);
-      
+
       const errorPayload: ErrorPayload = {
         event: TrackingEvents.LOCATION_UPDATE,
         message: error.message,
         code: 'LOCATION_UPDATE_ERROR',
       };
-      
+
       client.emit(TrackingEvents.ERROR, errorPayload);
     }
   }
@@ -430,45 +449,74 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
       const clientInfo = this.connectedClients.get(client.id);
 
       if (!clientInfo) {
+        this.logger.error(`❌ [Gateway] Cliente no autenticado intentando suscribirse: ${client.id}`);
         throw new WsException('Cliente no autenticado');
       }
 
+      this.logger.log(
+        `📡 [Gateway] Solicitud de suscripción recibida | ` +
+        `Cliente: ${client.id} | Usuario: ${clientInfo.userDni}`
+      );
+
       // Validar permisos
       if (!this.hasTrackingPermissions(clientInfo)) {
+        this.logger.warn(
+          `⚠️ [Gateway] Usuario sin permisos de tracking: ${clientInfo.userDni} | ` +
+          `Roles: ${clientInfo.roles.join(', ')}`
+        );
         throw new WsException('No tienes permisos para ver tracking');
       }
 
       // Unir a rooms según suscripción
+      const roomsJoined: string[] = [];
+
       if (payload.all) {
         client.join('tracking:all');
-        this.logger.debug(`👀 ${clientInfo.userDni} se suscribió a TODAS las unidades`);
+        roomsJoined.push('tracking:all');
+        this.logger.log(`✅ [Gateway] ${clientInfo.userDni} → room: tracking:all`);
       }
 
       if (payload.zonaId) {
-        client.join(`zona:${payload.zonaId}`);
-        this.logger.debug(`👀 ${clientInfo.userDni} se suscribió a zona ${payload.zonaId}`);
+        const zonaRoom = `zona:${payload.zonaId}`;
+        client.join(zonaRoom);
+        roomsJoined.push(zonaRoom);
+        this.logger.log(`✅ [Gateway] ${clientInfo.userDni} → room: ${zonaRoom}`);
       }
 
       if (payload.unidadesIds && payload.unidadesIds.length > 0) {
         payload.unidadesIds.forEach(unidadId => {
-          client.join(`unidad:${unidadId}`);
+          const unidadRoom = `unidad:${unidadId}`;
+          client.join(unidadRoom);
+          roomsJoined.push(unidadRoom);
         });
-        this.logger.debug(
-          `👀 ${clientInfo.userDni} se suscribió a unidades: ${payload.unidadesIds.join(', ')}`
+        this.logger.log(
+          `✅ [Gateway] ${clientInfo.userDni} → rooms: ${payload.unidadesIds.map(id => `unidad:${id}`).join(', ')}`
         );
       }
 
+      // Emitir confirmación
       client.emit('tracking:subscribed', {
         success: true,
         subscriptions: payload,
+        rooms: roomsJoined,
         timestamp: new Date().toISOString(),
       });
 
+      this.logger.log(
+        `🎯 [Gateway] Suscripción completada exitosamente | ` +
+        `Usuario: ${clientInfo.userDni} | ` +
+        `Rooms: ${roomsJoined.length} | ` +
+        `Total clientes conectados: ${this.connectedClients.size}`
+      );
+
     } catch (error) {
-      this.logger.error(`❌ Error en suscripción: ${error.message}`);
+      this.logger.error(`❌ [Gateway] Error en suscripción: ${error.message}`);
+      this.logger.error(`❌ [Gateway] Stack: ${error.stack}`);
+      
       client.emit(TrackingEvents.ERROR, {
         event: TrackingEvents.SUBSCRIBE_TRACKING,
         message: error.message,
+        code: 'SUBSCRIPTION_ERROR',
       });
     }
   }
@@ -527,14 +575,14 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
       }
 
       client.join(`unidad:${payload.unidadId}`);
-      
+
       this.logger.debug(
         `👀 ${clientInfo.userDni} se suscribió a unidad ${payload.unidadId}`
       );
 
       // Enviar estado actual de la unidad
       const status = await this.gpsService.getTrackingStatus(payload.unidadId);
-      
+
       client.emit(TrackingEvents.STATUS_UPDATE, {
         unidadId: payload.unidadId,
         status,
@@ -565,7 +613,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
       }
 
       const status = await this.gpsService.getTrackingStatus(payload.unidadId);
-      
+
       client.emit(TrackingEvents.STATUS_UPDATE, {
         unidadId: payload.unidadId,
         status,
@@ -587,7 +635,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     // Emitir a diferentes rooms
     this.server.to('tracking:all').emit(TrackingEvents.LOCATION_BROADCAST, payload);
     this.server.to(`unidad:${payload.unidadId}`).emit(TrackingEvents.LOCATION_BROADCAST, payload);
-    
+
     // TODO: También emitir a room de zona si conocemos la zona de la unidad
   }
 
@@ -596,11 +644,11 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
    */
   private addToBatchQueue(payload: LocationBroadcastPayload) {
     const unidadId = payload.unidadId;
-    
+
     if (!this.locationBatchQueue.has(unidadId)) {
       this.locationBatchQueue.set(unidadId, []);
     }
-    
+
     const queue = this.locationBatchQueue.get(unidadId)!;
     queue.push(payload);
 
@@ -623,7 +671,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     this.locationBatchQueue.forEach((locations, unidadId) => {
       // Tomar solo la última ubicación de cada unidad
       const lastLocation = locations[locations.length - 1];
-      
+
       this.broadcastLocation(lastLocation);
       totalBroadcasted++;
     });
@@ -683,14 +731,14 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     this.logger.debug(`📵 GPS Device inactivo notificado: Unidad ${unidadId}`);
   }
 
-  
+
   // ==========================================
   // ROOMS POR ROL
   // ==========================================
 
   private joinRoomsByRole(client: Socket, clientInfo: ClientInfo) {
     this.logger.debug(`📡 [Gateway] Uniendo a rooms...`);
-    
+
     // Todos los usuarios van a 'all'
     client.join('all');
     this.logger.debug(`✅ [Gateway] Unido a room: all`);
@@ -736,7 +784,7 @@ export class GpsGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
    * Verificar si cliente tiene permisos de tracking
    */
   private hasTrackingPermissions(clientInfo: ClientInfo): boolean {
-    const allowedRoles = ['ADMIN', 'SUPERVISOR', 'CONTROLADOR'];
+    const allowedRoles = ['ADMIN', 'SUPERVISOR', 'CONTROLADOR','CONDUCTOR'];
     return clientInfo.roles.some(role => allowedRoles.includes(role));
   }
 
