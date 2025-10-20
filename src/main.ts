@@ -119,12 +119,17 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  // const app = await NestFactory.create(AppModule);
   const app = await NestFactory.create(AppModule, {
-    logger: process.env.NODE_ENV === 'production'
-      ? ['error', 'warn', 'log']  // Solo errores y warnings en producción
-      : ['error', 'warn', 'log', 'debug', 'verbose'], // Todo en desarrollo
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
+
+  // const app = await NestFactory.create(AppModule, {
+  //   logger: process.env.NODE_ENV === 'production'
+  //     ? ['error', 'warn', 'log']  // Solo errores y warnings en producción
+  //     : ['error', 'warn', 'log', 'debug', 'verbose'], // Todo en desarrollo
+  // });
+
+
 
   const configService = app.get(ConfigService);
   const port = configService.get('PORT') || configService.get('APP_PORT') || 3080;
@@ -133,6 +138,7 @@ async function bootstrap() {
 
   // CORS (permitir frontend)
   app.enableCors({
+    // origin: process.env.CORS_ORIGIN || '*', // En producción: especificar origins
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
