@@ -21,7 +21,8 @@ export enum TipoCombustibleTicket {
   GASOLINA_90 = 'GASOLINA_90',
   GASOLINA_95 = 'GASOLINA_95',
   GASOLINA_97 = 'GASOLINA_97',
-  GAS_NATURAL = 'GAS_NATURAL',
+  GLP = 'GLP',
+  GNV = 'GNV',
   ELECTRICO = 'ELECTRICO'
 }
 

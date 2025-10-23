@@ -552,6 +552,7 @@ model Ruta {
   // Relaciones existentes
   asignacionesExcepcionales UnidadRuta[] // Asignaciones excepcionales directas
   tramosItinerario          TramoItinerario[] // Parte de itinerarios compuestos
+  
   ticketsAbastecimiento     TicketAbastecimiento[]
 
   @@index([estado])
@@ -629,6 +630,7 @@ model Itinerario {
   asignacionesUnidades UnidadItinerario[]
   ejecuciones          EjecucionItinerario[]
   historial            ItinerarioHistorial[]
+  ticketsAbastecimiento TicketAbastecimiento[]
 
   @@index([estado, tipoItinerario])
   @@map("itinerarios")
@@ -711,9 +713,12 @@ model UnidadItinerario {
   unidad      Unidad     @relation(fields: [unidadId], references: [id], onDelete: Cascade)
   itinerario  Itinerario @relation(fields: [itinerarioId], references: [id], onDelete: Cascade)
   asignadoPor Usuario?   @relation("UnidadItinerarioAsignador", fields: [asignadoPorId], references: [id])
+  ejecuciones EjecucionItinerario[]
 
   @@index([unidadId, fechaDesasignacion])
-  @@index([itinerarioId])
+  @@index([itinerarioId, esPermanente])
+  @@index([fechaDesasignacion])
+  @@unique([unidadId, itinerarioId, fechaDesasignacion])
   @@map("unidades_itinerarios")
 }
 
@@ -754,6 +759,7 @@ model EjecucionItinerario {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  unidadItinerarioId Int? @map("unidad_itinerario_id")
 
   // Relaciones
   itinerario      Itinerario      @relation(fields: [itinerarioId], references: [id])
@@ -764,6 +770,11 @@ model EjecucionItinerario {
   registrosTramos RegistroTramo[]
   alertasDesvio   AlertaDesvio[]
   ubicacionesGPS  UbicacionGPS[]
+  ticketsAbastecimiento TicketAbastecimiento[]
+  unidadItinerario UnidadItinerario? @relation(fields: [unidadItinerarioId], references: [id], onDelete: SetNull) 
+  
+  
+  @@index([unidadItinerarioId])
 
   @@index([unidadId, fechaProgramada])
   @@index([conductorId, fechaProgramada])
@@ -920,8 +931,11 @@ model TicketAbastecimiento {
   conductorId            Int       @map("conductor_id")
   grifoId                Int       @map("grifo_id")
   rutaId                 Int?      @map("ruta_id")
+  itinerarioId           Int?      @map("itinerario_id")
+  ejecucionItinerarioId  Int?      @map("ejecucion_itinerario_id")
   kilometrajeActual      Decimal   @map("kilometraje_actual") @db.Decimal(10, 2)
   kilometrajeAnterior    Decimal?  @map("kilometraje_anterior") @db.Decimal(10, 2)
+  nivelCombustibleAntes String?   @map("nivel_combustible_antes") @db.VarChar(20)
   precintoNuevo          String?    @map("precinto_nuevo") @db.VarChar(50)
   tipoCombustible        String    @default("DIESEL") @map("tipo_combustible") @db.VarChar(30)
   cantidad               Decimal   @db.Decimal(10, 3)
@@ -941,6 +955,8 @@ model TicketAbastecimiento {
   conductor     Usuario                    @relation("TicketConductor", fields: [conductorId], references: [id])
   grifo         Grifo                      @relation(fields: [grifoId], references: [id])
   ruta          Ruta?                      @relation(fields: [rutaId], references: [id])
+  itinerario            Itinerario?              @relation(fields: [itinerarioId], references: [id])
+  ejecucionItinerario   EjecucionItinerario?     @relation(fields: [ejecucionItinerarioId], references: [id])
   estado        EstadoTicketAbastecimiento @relation(fields: [estadoId], references: [id])
   solicitadoPor Usuario                    @relation("TicketSolicitadoPor", fields: [solicitadoPorId], references: [id])
   rechazadoPor  Usuario?                   @relation("TicketRechazadoPor", fields: [rechazadoPorId], references: [id])
@@ -953,6 +969,9 @@ model TicketAbastecimiento {
   @@index([conductorId, fecha])
   @@index([estadoId, fecha])
   @@index([grifoId])
+  @@index([ejecucionItinerarioId, fecha])
+  @@index([itinerarioId, fecha])
+  @@index([rutaId, fecha])
   @@map("tickets_abastecimiento")
 }
 
