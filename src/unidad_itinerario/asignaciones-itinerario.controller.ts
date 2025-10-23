@@ -13,6 +13,8 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -42,6 +44,7 @@ export class DesasignacionResponseDto {
 
 import { AsignacionesItinerarioService } from './asignaciones-itinerario.service';
 import { JwtAuthGuard } from '@/auth/jwt/jwt-auth.guard';
+import { DesasignarDto } from './dto/desasignar.dto';
 
 
 @ApiTags('Asignaciones de Itinerario')
@@ -51,7 +54,7 @@ import { JwtAuthGuard } from '@/auth/jwt/jwt-auth.guard';
 export class AsignacionesItinerarioController {
   constructor(
     private readonly asignacionesItinerarioService: AsignacionesItinerarioService,
-  ) {}
+  ) { }
 
   /**
    * Crear una nueva asignación de unidad a itinerario
@@ -133,12 +136,20 @@ export class AsignacionesItinerarioController {
   })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
   @ApiResponse({ status: 404, description: 'Asignación no encontrada' })
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateAsignacionDto: UpdateAsignacionItinerarioDto,
+    @Req() req: any,
   ): Promise<AsignacionItinerarioResponseDto> {
-    return await this.asignacionesItinerarioService.update(id, updateAsignacionDto);
+    const userId = req.user.id;
+    if (!userId) {
+      throw new UnauthorizedException('Usuario no autenticado');
+    }
+    // Opcional: fallback si DTO tiene asignadoPorId, pero prioriza token
+    updateAsignacionDto.asignadoPorId = updateAsignacionDto.asignadoPorId || userId;
+
+    return await this.asignacionesItinerarioService.update(id, updateAsignacionDto, userId);
   }
 
   /**
@@ -154,12 +165,68 @@ export class AsignacionesItinerarioController {
   })
   @ApiResponse({ status: 400, description: 'No se puede desasignar (ya desasignada o ejecuciones en curso)' })
   @ApiResponse({ status: 404, description: 'Asignación no encontrada' })
-  // @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth() // Documenta el Bearer token en Swagger
+  @UseGuards(JwtAuthGuard) // Activado: requiere JWT válido
   @HttpCode(HttpStatus.OK)
   async desasignar(
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: any, // Inyecta req para acceder a user del guard
+    @Body() dto: DesasignarDto,
   ): Promise<DesasignacionResponseDto> {
-    return await this.asignacionesItinerarioService.desasignar(id);
+    // Extrae userId del token (asumiendo req.user = { id: number, ... } del guard)
+    const userId = req.user.id; // Ajusta la clave si tu guard usa 'sub' o similar (e.g., req.user.sub)
+
+    // Si no hay user (edge case, pero guard ya valida), lanza error
+    if (!userId) {
+      throw new UnauthorizedException('Usuario no autenticado');
+    }
+
+    return await this.asignacionesItinerarioService.desasignar(id, userId, dto.motivo);
   }
+
+  @Patch(':id/obsoleta')
+  @ApiOperation({ summary: 'Marcar asignación como obsoleta (permanente)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async marcarObsoleta(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ): Promise<{ message: string }> {
+    const userId = req.user.id;
+    if (!userId) throw new UnauthorizedException('Usuario no autenticado');
+    return await this.asignacionesItinerarioService.marcarObsoleta(id, userId);
+  }
+
+  @Patch(':id/reactivar')
+  @ApiOperation({ summary: 'Reactivar una asignación desasignada' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async reactivar(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ): Promise<AsignacionItinerarioResponseDto> {
+    const userId = req.user.id;
+    if (!userId) throw new UnauthorizedException('Usuario no autenticado');
+    return await this.asignacionesItinerarioService.reactivar(id, userId);
+  }
+
+
+//   @Get('historial')
+// @ApiOperation({ summary: 'Obtener historial de asignaciones como reporte' })
+// @ApiQuery({ name: 'itinerarioId', type: Number, required: false })
+// @ApiQuery({ name: 'unidadId', type: Number, required: false })
+// @ApiQuery({ name: 'accion', enum: ['ASIGNADO', 'DESASIGNADO', 'ACTUALIZADO', 'OBSOLETA', 'REACTIVADO'], required: false })
+// @ApiQuery({ name: 'desde', type: String, description: 'YYYY-MM-DD', required: false })
+// @ApiQuery({ name: 'hasta', type: String, description: 'YYYY-MM-DD', required: false })
+// @UseGuards(JwtAuthGuard)
+// async getHistorial(@Query() filtros: any, @Req() req: any): Promise<{ data: any[]; total: number; }> {
+//   const userId = req.user.id;
+//   // Opcional: filtro por user si quieres (e.g., solo su historial)
+//   return await this.asignacionesItinerarioService.getHistorial({ ...filtros, userId }); // Si agregas filtro
+// }
 
 }

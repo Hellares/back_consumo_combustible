@@ -21,6 +21,7 @@ import { GpsModule } from './gps/gps.module';
 import { RutasModule } from './rutas/rutas.module';
 import { ItinerariosModule } from './itinerarios/itinerarios.module';
 import { UnidadItinerarioModule } from './unidad_itinerario/asignaciones-itinerario.module';
+import { ItinerarioHistorialModule } from './itinerario_historial/itinerario_historial.module';
 
 @Module({
   imports: [
@@ -30,7 +31,7 @@ import { UnidadItinerarioModule } from './unidad_itinerario/asignaciones-itinera
     }),
     PrismaModule,
     AuthModule,
-    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule, TurnosModule, TicketsAbastecimientoModule, ArchivosModule, DetallesAbastecimientoModule, ReportesModule, GpsModule, RutasModule, ItinerariosModule, UnidadItinerarioModule,
+    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule, TurnosModule, TicketsAbastecimientoModule, ArchivosModule, DetallesAbastecimientoModule, ReportesModule, GpsModule, RutasModule, ItinerariosModule, UnidadItinerarioModule, ItinerarioHistorialModule,
   ],
   controllers: [AppController],
   providers: [AppService],

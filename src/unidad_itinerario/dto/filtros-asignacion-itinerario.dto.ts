@@ -68,6 +68,26 @@ export class FiltrosAsignacionItinerarioDto {
   soloPermanentes?: boolean;
 
   @ApiPropertyOptional({
+    description: 'Filtrar solo Desasignadas',
+    example: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  soloDesasignadas?: boolean;
+
+   @ApiPropertyOptional({
+    description: 'Filtrar solo Obsoletas',
+    example: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  soloObsoletas?: boolean;
+
+
+
+  @ApiPropertyOptional({
     description: 'Cursor para paginación continua (base64 del último ID)',
     example: 'MTIzNDU2',  // Ejemplo: base64 de "123456"
   })

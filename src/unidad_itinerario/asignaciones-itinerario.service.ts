@@ -1,5 +1,3 @@
-// src/asignaciones-rutas/asignaciones-itinerario.service.ts
-
 import {
   Injectable,
   NotFoundException,
@@ -17,7 +15,7 @@ import {
   AsignacionItinerarioResponseDto,
   AsignacionesItinerarioPaginadasResponseDto,
 } from './dto/asignacion-itinerario-response.dto';
-import { Prisma } from '@prisma/client';
+import { ItinerarioHistorial, Prisma } from '@prisma/client';
 
 @Injectable()
 export class AsignacionesItinerarioService {
@@ -75,57 +73,78 @@ export class AsignacionesItinerarioService {
     );
 
     // 5. Crear la asignación
-    const asignacion = await this.prisma.unidadItinerario.create({
-      data: {
-        unidadId: createAsignacionDto.unidadId,
-        itinerarioId: createAsignacionDto.itinerarioId,
-        frecuencia: createAsignacionDto.frecuencia,
-        diasEspecificos: this.obtenerDiasSegunFrecuencia(
-          createAsignacionDto.frecuencia,
-          createAsignacionDto.diasEspecificos
-        ),
-        horaInicioPersonalizada: createAsignacionDto.horaInicioPersonalizada || null,
-        esPermanente: createAsignacionDto.esPermanente ?? true,
-        asignadoPorId: createAsignacionDto.asignadoPorId || null,
-        motivoCambio: createAsignacionDto.motivoCambio || null,
-        observaciones: createAsignacionDto.observaciones || null,
-      },
-      include: {
-        unidad: {
-          select: {
-            id: true,
-            placa: true,
-            marca: true,
-            modelo: true,
-            tipoCombustible: true,
+    return this.prisma.$transaction(async (tx) => {
+      const asignacion = await tx.unidadItinerario.create({
+        data: {
+          unidadId: createAsignacionDto.unidadId,
+          itinerarioId: createAsignacionDto.itinerarioId,
+          frecuencia: createAsignacionDto.frecuencia,
+          diasEspecificos: this.obtenerDiasSegunFrecuencia(
+            createAsignacionDto.frecuencia,
+            createAsignacionDto.diasEspecificos
+          ),
+          horaInicioPersonalizada: createAsignacionDto.horaInicioPersonalizada || null,
+          esPermanente: createAsignacionDto.esPermanente ?? true,
+          asignadoPorId: createAsignacionDto.asignadoPorId || null,
+          motivoCambio: createAsignacionDto.motivoCambio || null,
+          observaciones: createAsignacionDto.observaciones || null,
+          estado: 'ACTIVA',
+        },
+        include: {
+          unidad: {
+            select: {
+              id: true,
+              placa: true,
+              marca: true,
+              modelo: true,
+              tipoCombustible: true,
+            },
+          },
+          itinerario: {
+            select: {
+              id: true,
+              nombre: true,
+              codigo: true,
+              tipoItinerario: true,
+              distanciaTotal: true,
+              diasOperacion: true,
+            },
+          },
+          asignadoPor: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+            },
+          },
+          _count: {
+            select: {
+              ejecuciones: true,
+            },
           },
         },
-        itinerario: {
-          select: {
-            id: true,
-            nombre: true,
-            codigo: true,
-            tipoItinerario: true,
-            distanciaTotal: true,
-            diasOperacion: true,
-          },
-        },
-        asignadoPor: {
-          select: {
-            id: true,
-            nombres: true,
-            apellidos: true,
-          },
-        },
-        _count: {
-          select: {
-            ejecuciones: true,
-          },
-        },
-      },
-    });
+      });
 
-    return this.mapearAsignacionAResponse(asignacion);
+      // 2. Registrar en historial
+      await this.registrarHistorial(tx, {
+        itinerarioId: createAsignacionDto.itinerarioId,
+        accion: 'ASIGNADO',
+        descripcion: `Asignación de unidad ${unidad?.placa || 'ID: ' + createAsignacionDto.unidadId} a itinerario`,
+        cambiosJson: {
+          unidad: { id: createAsignacionDto.unidadId, placa: unidad?.placa },
+          frecuencia: createAsignacionDto.frecuencia,
+          diasEspecificos: createAsignacionDto.diasEspecificos,
+          esPermanente: createAsignacionDto.esPermanente ?? true,
+          horaInicioPersonalizada: createAsignacionDto.horaInicioPersonalizada,
+          motivo: createAsignacionDto.motivoCambio,
+          observaciones: createAsignacionDto.observaciones,
+        },
+        modificadoPorId: createAsignacionDto.asignadoPorId || 0, // Fallback si no hay user
+        unidadId: createAsignacionDto.unidadId,
+      });
+
+      return this.mapearAsignacionAResponse(asignacion);
+    });
   }
 
   /**
@@ -548,95 +567,154 @@ export class AsignacionesItinerarioService {
    */
   async update(
     id: number,
-    updateAsignacionDto: UpdateAsignacionItinerarioDto
+    updateAsignacionDto: UpdateAsignacionItinerarioDto,
+    userId: number,
   ): Promise<AsignacionItinerarioResponseDto> {
-    // Verificar que existe
+
+    const asignacionActual = await this.prisma.unidadItinerario.findUnique({ where: { id } });
+    if (asignacionActual.estado !== 'ACTIVA') {
+      throw new BadRequestException(`Asignación ID ${id} está ${asignacionActual.estado.toLowerCase()} y no se puede actualizar`);
+    }
+    // Verificar que existe (usa tu método existente, pero asume que tira NotFound si no existe)
+
     await this.findOne(id);
 
     // Validar días según frecuencia si se actualiza
     if (updateAsignacionDto.frecuencia) {
       this.validarDiasSegunFrecuencia(
         updateAsignacionDto.frecuencia,
-        updateAsignacionDto.diasEspecificos
+        updateAsignacionDto.diasEspecificos,
       );
     }
 
-    // Obtener días según frecuencia
+    // Obtener datos previos: base del modelo + includes mínimos para descripción
+    // (Esto resuelve el error: el tipo ahora es base + parciales, no full relations)
+    const datosPrevios = await this.prisma.unidadItinerario.findUnique({
+      where: { id },
+      include: {
+        unidad: { select: { placa: true } }, // Solo placa para descripción
+        itinerario: { select: { nombre: true } }, // Solo nombre para descripción
+      },
+    });
+
+    if (!datosPrevios) {
+      throw new NotFoundException(`Asignación con ID ${id} no encontrada`);
+    }
+
+    // Detectar cambios: ahora con tipo ajustado (solo base del modelo)
+    const cambios = this.detectarCambios(datosPrevios, updateAsignacionDto);
+    const hayCambios = Object.keys(cambios).length > 0;
+
+    // Obtener días según frecuencia (condicional)
     const diasEspecificos =
       updateAsignacionDto.frecuencia
         ? this.obtenerDiasSegunFrecuencia(
           updateAsignacionDto.frecuencia,
-          updateAsignacionDto.diasEspecificos
+          updateAsignacionDto.diasEspecificos,
         )
         : undefined;
 
-    const asignacion = await this.prisma.unidadItinerario.update({
-      where: { id },
-      data: {
-        ...(updateAsignacionDto.frecuencia && { frecuencia: updateAsignacionDto.frecuencia }),
-        ...(diasEspecificos && { diasEspecificos }),
-        ...(updateAsignacionDto.horaInicioPersonalizada !== undefined && {
-          horaInicioPersonalizada: updateAsignacionDto.horaInicioPersonalizada,
-        }),
-        ...(updateAsignacionDto.esPermanente !== undefined && {
-          esPermanente: updateAsignacionDto.esPermanente,
-        }),
-        ...(updateAsignacionDto.motivoCambio !== undefined && {
-          motivoCambio: updateAsignacionDto.motivoCambio,
-        }),
-        ...(updateAsignacionDto.observaciones !== undefined && {
-          observaciones: updateAsignacionDto.observaciones,
-        }),
-      },
-      include: {
-        unidad: {
-          select: {
-            id: true,
-            placa: true,
-            marca: true,
-            modelo: true,
-            tipoCombustible: true,
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Realizar el update (tu lógica original, intacta)
+      const asignacion = await tx.unidadItinerario.update({
+        where: { id },
+        data: {
+          ...(updateAsignacionDto.frecuencia && { frecuencia: updateAsignacionDto.frecuencia }),
+          ...(diasEspecificos && { diasEspecificos }),
+          ...(updateAsignacionDto.horaInicioPersonalizada !== undefined && {
+            horaInicioPersonalizada: updateAsignacionDto.horaInicioPersonalizada,
+          }),
+          ...(updateAsignacionDto.esPermanente !== undefined && {
+            esPermanente: updateAsignacionDto.esPermanente,
+          }),
+          ...(updateAsignacionDto.motivoCambio !== undefined && {
+            motivoCambio: updateAsignacionDto.motivoCambio,
+          }),
+          ...(updateAsignacionDto.observaciones !== undefined && {
+            observaciones: updateAsignacionDto.observaciones,
+          }),
+          // Si tienes asignadoPorId en DTO, agrégalo aquí
+          ...(updateAsignacionDto.asignadoPorId !== undefined && {
+            asignadoPorId: updateAsignacionDto.asignadoPorId,
+          }),
+        },
+        include: {
+          // Tu include completo para response
+          unidad: {
+            select: {
+              id: true,
+              placa: true,
+              marca: true,
+              modelo: true,
+              tipoCombustible: true,
+            },
+          },
+          itinerario: {
+            select: {
+              id: true,
+              nombre: true,
+              codigo: true,
+              tipoItinerario: true,
+              distanciaTotal: true,
+              diasOperacion: true,
+            },
+          },
+          asignadoPor: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+            },
+          },
+          _count: {
+            select: {
+              ejecuciones: true,
+            },
           },
         },
-        itinerario: {
-          select: {
-            id: true,
-            nombre: true,
-            codigo: true,
-            tipoItinerario: true,
-            distanciaTotal: true,
-            diasOperacion: true,
-          },
-        },
-        asignadoPor: {
-          select: {
-            id: true,
-            nombres: true,
-            apellidos: true,
-          },
-        },
-        _count: {
-          select: {
-            ejecuciones: true,
-          },
-        },
-      },
-    });
+      });
 
-    return this.mapearAsignacionAResponse(asignacion);
+      // 2. Registrar en historial SOLO si hay cambios
+      if (hayCambios) {
+        await this.registrarHistorial(tx, {
+          itinerarioId: datosPrevios.itinerarioId,
+          unidadId: datosPrevios.unidadId, // Campo directo del base model
+          accion: 'ACTUALIZADO',
+          descripcion: `Actualización de asignación de unidad ${datosPrevios.unidad.placa} en itinerario "${datosPrevios.itinerario.nombre}"`,
+          cambiosJson: {
+            cambios: cambios, // Deltas detallados
+            observaciones: updateAsignacionDto.observaciones,
+          },
+          modificadoPorId: updateAsignacionDto.asignadoPorId || userId,
+        });
+      }
+
+      return this.mapearAsignacionAResponse(asignacion);
+    });
   }
 
   /**
    * Desasignar una unidad de un itinerario
    */
-  async desasignar(id: number): Promise<{ message: string }> {
-    const asignacion = await this.findOne(id);
+  async desasignar(id: number, userId: number, motivo?: string): Promise<{ message: string }> {
+    // 1. Obtener datos previos para validaciones y historial
+    const asignacion = await this.prisma.unidadItinerario.findUnique({
+      where: { id },
+      include: {
+        unidad: { select: { placa: true } },
+        itinerario: { select: { nombre: true } },
+      },
+    });
+
+    if (!asignacion) {
+      throw new NotFoundException(`Asignación con ID ${id} no encontrada`);
+    }
 
     if (asignacion.fechaDesasignacion) {
       throw new BadRequestException('Esta asignación ya fue desasignada anteriormente');
     }
 
-    // Verificar si hay ejecuciones en curso
+    // Verificar si hay ejecuciones en curso (tu validación existente)
     const ejecucionesEnCurso = await this.prisma.ejecucionItinerario.count({
       where: {
         unidadId: asignacion.unidadId,
@@ -647,22 +725,198 @@ export class AsignacionesItinerarioService {
 
     if (ejecucionesEnCurso > 0) {
       throw new BadRequestException(
-        `No se puede desasignar porque la unidad ${asignacion.unidad?.placa} tiene ${ejecucionesEnCurso} ejecución(es) en curso`
+        `No se puede desasignar porque la unidad ${asignacion.unidad.placa} tiene ${ejecucionesEnCurso} ejecución(es) en curso`,
       );
     }
 
-    // Marcar como desasignada
-    await this.prisma.unidadItinerario.update({
+    // 2. Ejecutar en transacción
+    return this.prisma.$transaction(async (tx) => {
+      // Actualizar: marcar como desasignada
+      await tx.unidadItinerario.update({
+        where: { id },
+        data: {
+          fechaDesasignacion: new Date(),
+          estado: 'DESASIGNADA',
+        },
+      });
+
+      // Registrar en historial (ahora con userId real del token)
+      await this.registrarHistorial(tx, {
+        itinerarioId: asignacion.itinerarioId,
+        unidadId: asignacion.unidadId,
+        accion: 'DESASIGNADO',
+        descripcion: `Desasignación de unidad ${asignacion.unidad.placa} del itinerario "${asignacion.itinerario.nombre}"`,
+        cambiosJson: {
+          // Deltas simples para desasignación
+          motivo: motivo || 'Desasignación manual',
+          ejecucionesPendientes: ejecucionesEnCurso, // 0, pero por completitud
+        },
+        modificadoPorId: userId, // ¡Del token! Ahora es trazable al usuario real
+      });
+
+      return {
+        message: `Unidad ${asignacion.unidad.placa} desasignada del itinerario "${asignacion.itinerario.nombre}" exitosamente`,
+      };
+    });
+  }
+
+  async marcarObsoleta(id: number, userId: number): Promise<{ message: string }> {
+  const asignacion = await this.prisma.unidadItinerario.findUnique({ where: { id } });
+  if (!asignacion || asignacion.estado === 'OBSOLETA') {
+    throw new BadRequestException('Asignación no encontrada o ya obsoleta');
+  }
+  if (asignacion.estado === 'ACTIVA') {
+    throw new BadRequestException('Debe desasignar primero');
+  }
+
+  return this.prisma.$transaction(async (tx) => {
+    await tx.unidadItinerario.update({
       where: { id },
-      data: {
-        fechaDesasignacion: new Date(),
-      },
+      data: { estado: 'OBSOLETA' },
     });
 
-    return {
-      message: `Unidad ${asignacion.unidad?.placa} desasignada del itinerario "${asignacion.itinerario?.nombre}" exitosamente`,
-    };
+    await this.registrarHistorial(tx, {
+      itinerarioId: asignacion.itinerarioId,
+      unidadId: asignacion.unidadId,
+      accion: 'OBSOLETA',
+      descripcion: `Asignación marcada como obsoleta permanentemente`,
+      cambiosJson: { motivo: 'Descartada manualmente' },
+      modificadoPorId: userId,
+    });
+
+    return { message: 'Asignación marcada como obsoleta exitosamente' };
+  });
+}
+
+async reactivar(id: number, userId: number): Promise<AsignacionItinerarioResponseDto> {
+  const asignacion = await this.prisma.unidadItinerario.findUnique({
+    where: { id },
+    include: { unidad: { select: { placa: true } }, itinerario: { select: { nombre: true } } },
+  });
+  if (!asignacion || asignacion.estado !== 'DESASIGNADA') {
+    throw new BadRequestException('Asignación no encontrada o no está desasignada');
   }
+
+  return this.prisma.$transaction(async (tx) => {
+    const reactivada = await tx.unidadItinerario.update({
+      where: { id },
+      data: {
+        estado: 'ACTIVA',
+        fechaDesasignacion: null,
+      },
+      include: { /* tu include completo */ },
+    });
+
+    await this.registrarHistorial(tx, {
+      itinerarioId: asignacion.itinerarioId,
+      unidadId: asignacion.unidadId,
+      accion: 'REACTIVADO',
+      descripcion: `Reactivación de asignación de unidad ${asignacion.unidad.placa}`,
+      cambiosJson: { motivo: 'Reasignación temporal' },
+      modificadoPorId: userId,
+    });
+
+    return this.mapearAsignacionAResponse(reactivada);
+  });
+}
+
+  // ==================== MÉTODOS PRIVADOS ====================
+
+  /**
+   * Registrar en historial (adaptado a tu modelo)
+   */
+  private async registrarHistorial(
+    tx: Prisma.TransactionClient,
+    data: {
+      itinerarioId: number;
+      accion: string;
+      descripcion: string;
+      cambiosJson?: Record<string, any>;
+      modificadoPorId: number;
+      unidadId?: number;
+    },
+  ): Promise<void> {
+    await tx.itinerarioHistorial.create({
+      data: {
+        itinerarioId: data.itinerarioId,
+        accion: data.accion,
+        descripcion: data.descripcion,
+        cambiosJson: data.cambiosJson || null,
+        modificadoPorId: data.modificadoPorId,
+        unidadId: data.unidadId || null,
+      },
+    });
+  }
+
+  /**
+   * Detectar cambios para historial (simple diff)
+   */
+  private detectarCambios(
+    actual: Prisma.UnidadItinerarioGetPayload<{
+      include: {
+        unidad: { select: { placa: true } };
+        itinerario: { select: { nombre: true } }
+      }
+    }>, // Tipo exacto: base model + includes parciales (resuelve el mismatch)
+    nuevos: Partial<UpdateAsignacionItinerarioDto>,
+  ): Record<string, { anterior: any; nueva: any }> {
+    const cambios: Record<string, { anterior: any; nueva: any }> = {};
+
+    // Campos a comparar: solo los editables (tipados con keyof para TS safety)
+    const camposAComparar: (keyof UpdateAsignacionItinerarioDto)[] = [
+      'frecuencia',
+      'diasEspecificos',
+      'horaInicioPersonalizada',
+      'esPermanente',
+      'motivoCambio',
+      'observaciones',
+      // 'asignadoPorId', // Si lo agregas
+    ];
+
+    camposAComparar.forEach((campo) => {
+      const valorNuevo = nuevos[campo];
+      if (valorNuevo !== undefined) {
+        // Acceso safe a campos directos del base model (no nested)
+        const valorActual = (actual as any)[campo]; // Cast temporal; TS infiere bien con el tipo ajustado
+
+        // Comparación: shallow para scalars, deep para arrays (e.g., diasEspecificos)
+        const sonIguales = Array.isArray(valorActual) && Array.isArray(valorNuevo)
+          ? JSON.stringify([...(valorActual as any[]).sort()]) === JSON.stringify([...(valorNuevo as any[]).sort()])
+          : valorActual === valorNuevo;
+
+        if (!sonIguales) {
+          cambios[campo as string] = { // Cast a string para el Record key
+            anterior: valorActual,
+            nueva: valorNuevo,
+          };
+        }
+      }
+    });
+
+    return cambios;
+  }
+
+//   async getHistorial(
+//   filtros: { itinerarioId?: number; unidadId?: number; accion?: string; desde?: Date; hasta?: Date; },
+// ): Promise<{ data: ItinerarioHistorial[]; total: number; }> {
+//   const where: Prisma.ItinerarioHistorialWhereInput = {
+//     ...(filtros.itinerarioId && { itinerarioId: filtros.itinerarioId }),
+//     ...(filtros.unidadId && { unidadId: filtros.unidadId }),
+//     ...(filtros.accion && { accion: filtros.accion }),
+//     fechaCambio: { gte: filtros.desde, lte: filtros.hasta },
+//   };
+
+//   const [historial, total] = await Promise.all([
+//     this.prisma.itinerarioHistorial.findMany({
+//       where,
+//       include: { itinerario: true, unidad: true, modificadoPor: { select: { id: true, nombres: true, apellidos: true } } },
+//       orderBy: { fechaCambio: 'desc' },
+//     }),
+//     this.prisma.itinerarioHistorial.count({ where }),
+//   ]);
+
+//   return { data: historial, total };
+// }
 
   // ==================== MÉTODOS PRIVADOS ====================
 
@@ -673,8 +927,7 @@ export class AsignacionesItinerarioService {
     const asignacionExistente = await this.prisma.unidadItinerario.findFirst({
       where: {
         unidadId,
-        fechaDesasignacion: null,
-        esPermanente: true,
+        estado: 'ACTIVA',
       },
       include: {
         itinerario: {
@@ -746,12 +999,21 @@ export class AsignacionesItinerarioService {
     }
 
     if (filtros.soloActivas) {
-      where.fechaDesasignacion = null;
+      where.estado = 'ACTIVA';
     }
 
     if (filtros.soloPermanentes) {
       where.esPermanente = true;
     }
+
+    // Opcional: Si quieres filtrar desasignadas u obsoletas en reportes
+  if (filtros.soloDesasignadas) {
+    where.estado = 'DESASIGNADA';
+  }
+
+  if (filtros.soloObsoletas) {
+    where.estado = 'OBSOLETA';
+  }
 
     return where;
   }

@@ -92,6 +92,12 @@ enum SeveridadDesvio {
   CRITICO
 }
 
+enum EstadoAsignacion {
+  ACTIVA
+  DESASIGNADA
+  OBSOLETA
+}
+
 model Zona {
   id          Int      @id @default(autoincrement())
   nombre      String   @db.VarChar(100)
@@ -312,6 +318,7 @@ model Unidad {
   rutasExcepcionales    UnidadRuta[]
   itinerariosAsignados  UnidadItinerario[]
   ejecucionesItinerario EjecucionItinerario[]
+  historialesItinerario ItinerarioHistorial[]
 
   //para gps
   ubicacionesGPS UbicacionGPS[]
@@ -708,6 +715,7 @@ model UnidadItinerario {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  estado        EstadoAsignacion @default(ACTIVA)
 
   // Relaciones
   unidad      Unidad     @relation(fields: [unidadId], references: [id], onDelete: Cascade)
@@ -719,6 +727,9 @@ model UnidadItinerario {
   @@index([itinerarioId, esPermanente])
   @@index([fechaDesasignacion])
   @@unique([unidadId, itinerarioId, fechaDesasignacion])
+  @@index([unidadId, esPermanente, fechaDesasignacion])
+  @@index([estado, createdAt(sort: Desc)])
+  @@index([unidadId, estado])
   @@map("unidades_itinerarios")
 }
 
@@ -832,6 +843,7 @@ model RegistroTramo {
 model ItinerarioHistorial {
   id              Int      @id @default(autoincrement())
   itinerarioId    Int      @map("itinerario_id")
+  unidadId        Int?     @map("unidad_id")
   accion          String   @db.VarChar(50)
   descripcion     String
   cambiosJson     Json?
@@ -839,9 +851,11 @@ model ItinerarioHistorial {
   fechaCambio     DateTime @default(now()) @map("fecha_cambio")
 
   itinerario    Itinerario @relation(fields: [itinerarioId], references: [id], onDelete: Cascade)
+  unidad        Unidad?    @relation(fields: [unidadId], references: [id], onDelete: SetNull)
   modificadoPor Usuario    @relation("ItinerarioHistorialModificador", fields: [modificadoPorId], references: [id])
 
   @@index([itinerarioId, fechaCambio])
+  @@index([unidadId, fechaCambio(sort: Desc)])
   @@map("itinerario_historial")
 }
 
