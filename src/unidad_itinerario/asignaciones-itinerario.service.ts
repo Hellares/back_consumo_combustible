@@ -16,14 +16,141 @@ import {
   AsignacionesItinerarioPaginadasResponseDto,
 } from './dto/asignacion-itinerario-response.dto';
 import { ItinerarioHistorial, Prisma } from '@prisma/client';
+import { ValidacionAsignacionesService } from '@/asignaciones/validacion/validacion-asignaciones.service';
 
 @Injectable()
 export class AsignacionesItinerarioService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly validacionService: ValidacionAsignacionesService,
+  ) { }
 
   /**
    * Crear una asignación permanente de unidad a itinerario
    */
+  // async create(
+  //   createAsignacionDto: CreateAsignacionItinerarioDto,
+  // ): Promise<AsignacionItinerarioResponseDto> {
+  //   // 1. Validar que la unidad existe y está activa
+  //   const unidad = await this.prisma.unidad.findUnique({
+  //     where: { id: createAsignacionDto.unidadId },
+  //     select: { id: true, placa: true, activo: true },
+  //   });
+
+  //   if (!unidad) {
+  //     throw new NotFoundException(
+  //       `Unidad con ID ${createAsignacionDto.unidadId} no encontrada`
+  //     );
+  //   }
+
+  //   if (!unidad.activo) {
+  //     throw new BadRequestException(
+  //       `La unidad ${unidad.placa} está inactiva y no puede ser asignada`
+  //     );
+  //   }
+
+  //   // 2. Validar que el itinerario existe y está activo
+  //   const itinerario = await this.prisma.itinerario.findUnique({
+  //     where: { id: createAsignacionDto.itinerarioId },
+  //     select: { id: true, nombre: true, estado: true },
+  //   });
+
+  //   if (!itinerario) {
+  //     throw new NotFoundException(
+  //       `Itinerario con ID ${createAsignacionDto.itinerarioId} no encontrado`
+  //     );
+  //   }
+
+  //   if (itinerario.estado !== 'ACTIVO') {
+  //     throw new BadRequestException(
+  //       `El itinerario "${itinerario.nombre}" no está activo y no puede ser asignado`
+  //     );
+  //   }
+
+  //   // 3. Validar que la unidad no tiene otra asignación permanente activa
+  //   await this.validarAsignacionUnica(createAsignacionDto.unidadId);
+
+  //   // 4. Validar días específicos según frecuencia
+  //   this.validarDiasSegunFrecuencia(
+  //     createAsignacionDto.frecuencia,
+  //     createAsignacionDto.diasEspecificos
+  //   );
+
+  //   // 5. Crear la asignación
+  //   return this.prisma.$transaction(async (tx) => {
+  //     const asignacion = await tx.unidadItinerario.create({
+  //       data: {
+  //         unidadId: createAsignacionDto.unidadId,
+  //         itinerarioId: createAsignacionDto.itinerarioId,
+  //         frecuencia: createAsignacionDto.frecuencia,
+  //         diasEspecificos: this.obtenerDiasSegunFrecuencia(
+  //           createAsignacionDto.frecuencia,
+  //           createAsignacionDto.diasEspecificos
+  //         ),
+  //         horaInicioPersonalizada: createAsignacionDto.horaInicioPersonalizada || null,
+  //         esPermanente: createAsignacionDto.esPermanente ?? true,
+  //         asignadoPorId: createAsignacionDto.asignadoPorId || null,
+  //         motivoCambio: createAsignacionDto.motivoCambio || null,
+  //         observaciones: createAsignacionDto.observaciones || null,
+  //         estado: 'ACTIVA',
+  //       },
+  //       include: {
+  //         unidad: {
+  //           select: {
+  //             id: true,
+  //             placa: true,
+  //             marca: true,
+  //             modelo: true,
+  //             tipoCombustible: true,
+  //           },
+  //         },
+  //         itinerario: {
+  //           select: {
+  //             id: true,
+  //             nombre: true,
+  //             codigo: true,
+  //             tipoItinerario: true,
+  //             distanciaTotal: true,
+  //             diasOperacion: true,
+  //           },
+  //         },
+  //         asignadoPor: {
+  //           select: {
+  //             id: true,
+  //             nombres: true,
+  //             apellidos: true,
+  //           },
+  //         },
+  //         _count: {
+  //           select: {
+  //             ejecuciones: true,
+  //           },
+  //         },
+  //       },
+  //     });
+
+  //     // 2. Registrar en historial
+  //     await this.registrarHistorial(tx, {
+  //       itinerarioId: createAsignacionDto.itinerarioId,
+  //       accion: 'ASIGNADO',
+  //       descripcion: `Asignación de unidad ${unidad?.placa || 'ID: ' + createAsignacionDto.unidadId} a itinerario`,
+  //       cambiosJson: {
+  //         unidad: { id: createAsignacionDto.unidadId, placa: unidad?.placa },
+  //         frecuencia: createAsignacionDto.frecuencia,
+  //         diasEspecificos: createAsignacionDto.diasEspecificos,
+  //         esPermanente: createAsignacionDto.esPermanente ?? true,
+  //         horaInicioPersonalizada: createAsignacionDto.horaInicioPersonalizada,
+  //         motivo: createAsignacionDto.motivoCambio,
+  //         observaciones: createAsignacionDto.observaciones,
+  //       },
+  //       modificadoPorId: createAsignacionDto.asignadoPorId || 0, // Fallback si no hay user
+  //       unidadId: createAsignacionDto.unidadId,
+  //     });
+
+  //     return this.mapearAsignacionAResponse(asignacion);
+  //   });
+  // }
+
   async create(
     createAsignacionDto: CreateAsignacionItinerarioDto,
   ): Promise<AsignacionItinerarioResponseDto> {
@@ -63,8 +190,24 @@ export class AsignacionesItinerarioService {
       );
     }
 
-    // 3. Validar que la unidad no tiene otra asignación permanente activa
-    await this.validarAsignacionUnica(createAsignacionDto.unidadId);
+    // 3. 🔴 VALIDACIÓN INTELIGENTE CON EL NUEVO SERVICIO
+    const validacion = await this.validacionService.validarDisponibilidadUnidad({
+      unidadId: createAsignacionDto.unidadId,
+      tipoAsignacion: 'ITINERARIO',
+    });
+
+    if (!validacion.permitido) {
+      throw new ConflictException(
+        validacion.conflictos?.join(', ') || 
+        'La unidad no está disponible para asignación de itinerario'
+      );
+    }
+
+    // 3.1 📢 Informar advertencias (opcional: puedes logearlas o retornarlas)
+    if (validacion.advertencias && validacion.advertencias.length > 0) {
+      console.log('⚠️ ADVERTENCIAS AL ASIGNAR ITINERARIO:', validacion.advertencias);
+      // Opcional: podrías agregar las advertencias en el response o en observaciones
+    }
 
     // 4. Validar días específicos según frecuencia
     this.validarDiasSegunFrecuencia(
@@ -72,7 +215,7 @@ export class AsignacionesItinerarioService {
       createAsignacionDto.diasEspecificos
     );
 
-    // 5. Crear la asignación
+    // 5. Crear la asignación (tu código existente continúa igual)
     return this.prisma.$transaction(async (tx) => {
       const asignacion = await tx.unidadItinerario.create({
         data: {
@@ -125,7 +268,7 @@ export class AsignacionesItinerarioService {
         },
       });
 
-      // 2. Registrar en historial
+      // Registrar en historial (tu código existente)
       await this.registrarHistorial(tx, {
         itinerarioId: createAsignacionDto.itinerarioId,
         accion: 'ASIGNADO',
@@ -135,11 +278,9 @@ export class AsignacionesItinerarioService {
           frecuencia: createAsignacionDto.frecuencia,
           diasEspecificos: createAsignacionDto.diasEspecificos,
           esPermanente: createAsignacionDto.esPermanente ?? true,
-          horaInicioPersonalizada: createAsignacionDto.horaInicioPersonalizada,
-          motivo: createAsignacionDto.motivoCambio,
-          observaciones: createAsignacionDto.observaciones,
+          advertencias: validacion.advertencias, // 👈 Guardar advertencias en historial
         },
-        modificadoPorId: createAsignacionDto.asignadoPorId || 0, // Fallback si no hay user
+        modificadoPorId: createAsignacionDto.asignadoPorId || 1, // O el userId del token
         unidadId: createAsignacionDto.unidadId,
       });
 
@@ -923,27 +1064,27 @@ async reactivar(id: number, userId: number): Promise<AsignacionItinerarioRespons
   /**
    * Validar que la unidad no tiene otra asignación permanente activa
    */
-  private async validarAsignacionUnica(unidadId: number): Promise<void> {
-    const asignacionExistente = await this.prisma.unidadItinerario.findFirst({
-      where: {
-        unidadId,
-        estado: 'ACTIVA',
-      },
-      include: {
-        itinerario: {
-          select: {
-            nombre: true,
-          },
-        },
-      },
-    });
+  // private async validarAsignacionUnica(unidadId: number): Promise<void> {
+  //   const asignacionExistente = await this.prisma.unidadItinerario.findFirst({
+  //     where: {
+  //       unidadId,
+  //       estado: 'ACTIVA',
+  //     },
+  //     include: {
+  //       itinerario: {
+  //         select: {
+  //           nombre: true,
+  //         },
+  //       },
+  //     },
+  //   });
 
-    if (asignacionExistente) {
-      throw new ConflictException(
-        `La unidad ya tiene una asignación permanente activa al itinerario "${asignacionExistente.itinerario.nombre}". Debe desasignarla primero.`
-      );
-    }
-  }
+  //   if (asignacionExistente) {
+  //     throw new ConflictException(
+  //       `La unidad ya tiene una asignación permanente activa al itinerario "${asignacionExistente.itinerario.nombre}". Debe desasignarla primero.`
+  //     );
+  //   }
+  // }
 
   /**
    * Validar días específicos según frecuencia

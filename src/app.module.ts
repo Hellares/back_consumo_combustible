@@ -22,6 +22,8 @@ import { RutasModule } from './rutas/rutas.module';
 import { ItinerariosModule } from './itinerarios/itinerarios.module';
 import { UnidadItinerarioModule } from './unidad_itinerario/asignaciones-itinerario.module';
 import { ItinerarioHistorialModule } from './itinerario_historial/itinerario_historial.module';
+import { ValidacionAsignacionesModule } from './asignaciones/validacion/validacion-asignaciones.module';
+import { RutasExcepcionalesModule } from './rutas-excepcionales/rutas-excepcionales.module';
 
 @Module({
   imports: [
@@ -31,7 +33,25 @@ import { ItinerarioHistorialModule } from './itinerario_historial/itinerario_his
     }),
     PrismaModule,
     AuthModule,
-    UsuariosModule, RolesModule, ZonasModule, SedesModule, GrifosModule, LicenciasConducirModule, UnidadesModule, TurnosModule, TicketsAbastecimientoModule, ArchivosModule, DetallesAbastecimientoModule, ReportesModule, GpsModule, RutasModule, ItinerariosModule, UnidadItinerarioModule, ItinerarioHistorialModule,
+    UsuariosModule, 
+    RolesModule, 
+    ZonasModule, 
+    SedesModule, 
+    GrifosModule, 
+    LicenciasConducirModule, 
+    UnidadesModule, 
+    TurnosModule, 
+    TicketsAbastecimientoModule, 
+    ArchivosModule, 
+    DetallesAbastecimientoModule, 
+    ReportesModule, 
+    GpsModule, 
+    RutasModule, 
+    ItinerariosModule, 
+    UnidadItinerarioModule, 
+    ItinerarioHistorialModule, 
+    ValidacionAsignacionesModule, 
+    RutasExcepcionalesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
