@@ -48,6 +48,8 @@ import { UpdateTicketAbastecimientoDto } from './dto/update-tickets_abastecimien
 import { JwtRolesGuard } from '@/auth/jwt/jwt-roles.guard';
 import { HasRoles } from '@/auth/jwt/has-roles';
 import { JwtRole } from '@/auth/jwt/jwt-role';
+import { QueryDetectarItinerarioDto } from './dto/query-detectar-itinerario.dto';
+import { ItinerarioDetectadoResponseDto } from './dto/detectar-itinerario-response.dto';
 // import { HasRoles } from 'src/auth/jwt/has-roles';
 // import { JwtRole } from 'src/auth/jwt/jwt-role';
 // import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
@@ -59,40 +61,176 @@ import { JwtRole } from '@/auth/jwt/jwt-role';
 export class TicketsAbastecimientoController {
   constructor(private readonly ticketsService: TicketsAbastecimientoService) { }
 
-  @Post()
+  /**
+ * NUEVO: Detectar itinerario/ruta automáticamente para una unidad
+ */
+  @Get('detectar-itinerario')
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
   @HasRoles(JwtRole.ADMIN, JwtRole.USER)
-  // @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'tickets_abastecimiento', actions: ['create'] })
-  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Crear nuevo ticket de abastecimiento',
-    description: 'Registra una nueva solicitud de abastecimiento de combustible en el sistema con validaciones completas'
+    summary: 'Detectar itinerario/ruta para una unidad',
+    description: `
+    Detecta automáticamente el itinerario o ruta asignada a una unidad para una fecha específica.
+    
+    **Prioridad de detección:**
+    1. Ejecución EN_CURSO (si la unidad está ejecutando un itinerario en este momento)
+    2. Ruta excepcional programada para HOY
+    3. Itinerario permanente que opere HOY
+    4. Ninguno (si no hay asignación)
+    
+    **Casos de uso:**
+    - Frontend pregunta "¿Qué itinerario tiene esta unidad hoy?" antes de crear el ticket
+    - Mostrar sugerencia al controlador al crear ticket
+    - Validar si una unidad tiene itinerario asignado
+  `
   })
-  @ApiCreatedResponse({
-    description: 'Ticket creado exitosamente',
-    type: TicketAbastecimientoResponseDto
+  @ApiQuery({
+    name: 'unidadId',
+    required: true,
+    type: Number,
+    description: 'ID de la unidad para detectar el itinerario',
+    example: 5
   })
-  @ApiConflictResponse({
-    description: 'Ya existe un ticket con el mismo precinto o referencias inválidas'
+  @ApiQuery({
+    name: 'fecha',
+    required: false,
+    type: String,
+    description: 'Fecha para la detección (YYYY-MM-DD). Si no se envía, usa la fecha actual',
+    example: '2024-01-15'
+  })
+  @ApiOkResponse({
+    description: 'Itinerario/ruta detectado exitosamente',
+    type: ItinerarioDetectadoResponseDto,
+    schema: {
+      example: {
+        itinerario: {
+          id: 2,
+          nombre: 'Ruta Norte Completa',
+          codigo: 'RNC-001',
+          tipoItinerario: 'CIRCULAR',
+          distanciaTotal: 960.5,
+          diasOperacion: ['LUNES', 'MIERCOLES', 'VIERNES'],
+          horaInicioHabitual: '06:00'
+        },
+        ruta: null,
+        ejecucionItinerarioId: null,
+        origen: 'ITINERARIO_PERMANENTE',
+        mensaje: 'Itinerario permanente: "Ruta Norte Completa" opera los LUNES',
+        puedeModificar: true,
+        detectado: true,
+        diaSemana: 'LUNES',
+        fecha: '2024-01-15'
+      }
+    }
   })
   @ApiBadRequestResponse({
-    description: 'Datos de entrada inválidos, referencias inactivas o inconsistencias en kilometraje'
+    description: 'Parámetros inválidos o unidad no encontrada'
   })
   @ApiUnauthorizedResponse({
     description: 'No autorizado - Token JWT requerido'
   })
-  async create(
-    @Body() createTicketDto: CreateTicketAbastecimientoDto,
-    @Request() req: any
-  ): Promise<TicketAbastecimientoResponseDto> {
-    const solicitadoPorId = req.user.id;
-    return this.ticketsService.create(createTicketDto, solicitadoPorId);
+  async detectarItinerario(
+    @Query() queryDto: QueryDetectarItinerarioDto
+  ): Promise<ItinerarioDetectadoResponseDto> {
+    const fecha = queryDto.fecha ? new Date(queryDto.fecha) : new Date();
+    return await this.ticketsService.detectarItinerarioParaUnidad(
+      queryDto.unidadId,
+      fecha
+    );
   }
 
+  // @Post()
+  // @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  // @HasRoles(JwtRole.ADMIN, JwtRole.USER)
+  // // @UseGuards(JwtPermissionsGuard)
+  // // @Permissions({ resource: 'tickets_abastecimiento', actions: ['create'] })
+  // @HttpCode(HttpStatus.CREATED)
+  // @ApiOperation({
+  //   summary: 'Crear nuevo ticket de abastecimiento',
+  //   description: 'Registra una nueva solicitud de abastecimiento de combustible en el sistema con validaciones completas'
+  // })
+  // @ApiCreatedResponse({
+  //   description: 'Ticket creado exitosamente',
+  //   type: TicketAbastecimientoResponseDto
+  // })
+  // @ApiConflictResponse({
+  //   description: 'Ya existe un ticket con el mismo precinto o referencias inválidas'
+  // })
+  // @ApiBadRequestResponse({
+  //   description: 'Datos de entrada inválidos, referencias inactivas o inconsistencias en kilometraje'
+  // })
+  // @ApiUnauthorizedResponse({
+  //   description: 'No autorizado - Token JWT requerido'
+  // })
+  // async create(
+  //   @Body() createTicketDto: CreateTicketAbastecimientoDto,
+  //   @Request() req: any
+  // ): Promise<TicketAbastecimientoResponseDto> {
+  //   const solicitadoPorId = req.user.id;
+  //   return this.ticketsService.create(createTicketDto, solicitadoPorId);
+  // }
+
+  @Post()
+@UseGuards(JwtAuthGuard, JwtRolesGuard)
+@HasRoles(JwtRole.ADMIN, JwtRole.USER)
+@HttpCode(HttpStatus.CREATED)
+@ApiOperation({
+  summary: 'Crear nuevo ticket de abastecimiento',
+  description: `
+    Registra una nueva solicitud de abastecimiento de combustible en el sistema.
+    
+    **Flujo recomendado:**
+    1. Llamar primero a \`GET /tickets-abastecimiento/detectar-itinerario?unidadId=X\`
+    2. Mostrar al usuario el itinerario/ruta detectado
+    3. Usuario puede ACEPTAR (origenAsignacion: AUTOMATICO) o CAMBIAR (origenAsignacion: MANUAL)
+    4. Crear el ticket con los datos correspondientes
+    
+    **Campos de itinerario/ruta:**
+    - \`rutaId\`: Solo si es ruta simple (no enviar con itinerarioId)
+    - \`itinerarioId\`: ID del itinerario asignado (no enviar con rutaId)
+    - \`ejecucionItinerarioId\`: Solo si hay ejecución en curso
+    - \`origenAsignacion\`: AUTOMATICO, MANUAL o NINGUNO
+    - \`motivoCambioItinerario\`: OBLIGATORIO si origenAsignacion es MANUAL
+    - \`itinerarioOriginalDetectadoId\`: Para auditoría (si se cambió manualmente)
+    
+    **Validaciones:**
+    - No se puede tener rutaId E itinerarioId simultáneamente
+    - Si origenAsignacion es MANUAL, motivoCambioItinerario es obligatorio
+    - Tipo de combustible debe coincidir con el de la unidad
+    - Kilometraje actual debe ser mayor al anterior
+    - Precinto debe ser único
+  `
+})
+@ApiCreatedResponse({
+  description: 'Ticket creado exitosamente',
+  type: TicketAbastecimientoResponseDto
+})
+@ApiConflictResponse({
+  description: 'Ya existe un ticket con el mismo precinto o referencias inválidas'
+})
+@ApiBadRequestResponse({
+  description: `
+    Errores posibles:
+    - Datos de entrada inválidos
+    - Referencias inactivas (unidad, conductor, grifo, ruta, itinerario)
+    - Inconsistencias en kilometraje
+    - Tipo de combustible no compatible
+    - Ruta e itinerario asignados simultáneamente
+    - Origen MANUAL sin motivo
+  `
+})
+@ApiUnauthorizedResponse({
+  description: 'No autorizado - Token JWT requerido'
+})
+async create(
+  @Body() createTicketDto: CreateTicketAbastecimientoDto,
+  @Request() req: any
+): Promise<TicketAbastecimientoResponseDto> {
+  const solicitadoPorId = req.user.id;
+  return this.ticketsService.create(createTicketDto, solicitadoPorId);
+}
+
   @Get()
-  // @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'tickets_abastecimiento', actions: ['read'] })
   @ApiOperation({
     summary: 'Listar tickets de abastecimiento',
     description: 'Obtiene una lista paginada de tickets con filtros avanzados y búsqueda'

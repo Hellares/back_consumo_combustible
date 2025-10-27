@@ -638,6 +638,7 @@ model Itinerario {
   ejecuciones          EjecucionItinerario[]
   historial            ItinerarioHistorial[]
   ticketsAbastecimiento TicketAbastecimiento[]
+  ticketsItinerarioDetectado TicketAbastecimiento[] @relation("ItinerarioDetectado")
 
   @@index([estado, tipoItinerario])
   @@map("itinerarios")
@@ -944,9 +945,15 @@ model TicketAbastecimiento {
   unidadId               Int       @map("unidad_id")
   conductorId            Int       @map("conductor_id")
   grifoId                Int       @map("grifo_id")
+
   rutaId                 Int?      @map("ruta_id")
   itinerarioId           Int?      @map("itinerario_id")
   ejecucionItinerarioId  Int?      @map("ejecucion_itinerario_id")
+
+  origenAsignacion              String  @default("NINGUNO") @map("origen_asignacion") @db.VarChar(30)
+  motivoCambioItinerario        String? @map("motivo_cambio_itinerario")
+  itinerarioOriginalDetectadoId Int?    @map("itinerario_original_detectado_id")
+
   kilometrajeActual      Decimal   @map("kilometraje_actual") @db.Decimal(10, 2)
   kilometrajeAnterior    Decimal?  @map("kilometraje_anterior") @db.Decimal(10, 2)
   nivelCombustibleAntes String?   @map("nivel_combustible_antes") @db.VarChar(20)
@@ -971,6 +978,7 @@ model TicketAbastecimiento {
   ruta          Ruta?                      @relation(fields: [rutaId], references: [id])
   itinerario            Itinerario?              @relation(fields: [itinerarioId], references: [id])
   ejecucionItinerario   EjecucionItinerario?     @relation(fields: [ejecucionItinerarioId], references: [id])
+  itinerarioOriginalDetectado Itinerario?                @relation("ItinerarioDetectado", fields: [itinerarioOriginalDetectadoId], references: [id])
   estado        EstadoTicketAbastecimiento @relation(fields: [estadoId], references: [id])
   solicitadoPor Usuario                    @relation("TicketSolicitadoPor", fields: [solicitadoPorId], references: [id])
   rechazadoPor  Usuario?                   @relation("TicketRechazadoPor", fields: [rechazadoPorId], references: [id])
@@ -983,9 +991,12 @@ model TicketAbastecimiento {
   @@index([conductorId, fecha])
   @@index([estadoId, fecha])
   @@index([grifoId])
+  @@index([turnoId])
   @@index([ejecucionItinerarioId, fecha])
   @@index([itinerarioId, fecha])
   @@index([rutaId, fecha])
+  @@index([itinerarioOriginalDetectadoId])
+  @@index([origenAsignacion])
   @@map("tickets_abastecimiento")
 }
 

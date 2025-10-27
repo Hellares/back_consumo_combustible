@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Transform, Type } from 'class-transformer';
+import { ItinerarioBasicoDto } from './itinerario-basico.dto';
 
 export class TurnoBasicoDto {
   @ApiProperty({ description: 'ID del turno', example: 1 })
@@ -166,6 +167,51 @@ export class TicketAbastecimientoResponseDto {
   @Expose()
   @Type(() => RutaBasicaDto)
   ruta?: RutaBasicaDto;
+
+  @ApiPropertyOptional({ 
+    description: 'Información del itinerario asignado', 
+    type: ItinerarioBasicoDto 
+  })
+  @Expose()
+  @Type(() => ItinerarioBasicoDto)
+  itinerario?: ItinerarioBasicoDto;
+
+  @ApiPropertyOptional({ 
+    description: 'ID de la ejecución de itinerario', 
+    example: 15 
+  })
+  @Expose()
+  ejecucionItinerarioId?: number;
+
+  @ApiProperty({ 
+    description: 'Origen de la asignación de ruta/itinerario',
+    enum: ['AUTOMATICO', 'MANUAL', 'NINGUNO'],
+    example: 'AUTOMATICO'
+  })
+  @Expose()
+  origenAsignacion: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Motivo del cambio manual de itinerario',
+    example: 'Emergencia - Apoyo en ruta sur'
+  })
+  @Expose()
+  motivoCambioItinerario?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'ID del itinerario originalmente detectado',
+    example: 2
+  })
+  @Expose()
+  itinerarioOriginalDetectadoId?: number;
+
+  @ApiPropertyOptional({ 
+    description: 'Información del itinerario originalmente detectado (para auditoría)',
+    type: ItinerarioBasicoDto 
+  })
+  @Expose()
+  @Type(() => ItinerarioBasicoDto)
+  itinerarioOriginalDetectado?: ItinerarioBasicoDto;
 
   @ApiProperty({ description: 'Kilometraje actual', example: 125420.50 })
   @Expose()

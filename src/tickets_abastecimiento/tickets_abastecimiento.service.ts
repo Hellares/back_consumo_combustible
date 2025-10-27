@@ -2,24 +2,25 @@
 // src/tickets_abastecimiento/tickets_abastecimiento.service.ts
 // =============================================
 
-import { 
-  Injectable, 
-  NotFoundException, 
-  BadRequestException, 
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
   ConflictException,
-  UnauthorizedException 
+  UnauthorizedException
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { plainToInstance } from 'class-transformer';
 
 import { QueryTicketDto } from './dto/query-ticket.dto';
-import { TicketAbastecimientoResponseDto } from './dto/ticket-response.dto';
+import { TicketAbastecimientoResponseDto, } from './dto/ticket-response.dto';
 import { CreateTicketAbastecimientoDto } from './dto/create-tickets_abastecimiento.dto';
 import { UpdateTicketAbastecimientoDto } from './dto/update-tickets_abastecimiento.dto';
+import { ItinerarioDetectadoResponseDto, ItinerarioDetectadoInfoDto, RutaDetectadaDto   } from './dto/detectar-itinerario-response.dto';
 
 @Injectable()
 export class TicketsAbastecimientoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Crear nuevo ticket de abastecimiento
@@ -66,7 +67,15 @@ export class TicketsAbastecimientoService {
       unidadId: createTicketDto.unidadId,
       conductorId: createTicketDto.conductorId,
       grifoId: createTicketDto.grifoId,
-      rutaId: createTicketDto.rutaId,
+      // NUEVOS CAMPOS: Ruta/Itinerario/Ejecución
+      rutaId: createTicketDto.rutaId || null,
+      itinerarioId: createTicketDto.itinerarioId || null,
+      ejecucionItinerarioId: createTicketDto.ejecucionItinerarioId || null,
+      // NUEVOS CAMPOS: Trazabilidad
+      origenAsignacion: createTicketDto.origenAsignacion || 'NINGUNO',
+      motivoCambioItinerario: createTicketDto.motivoCambioItinerario || null,
+      itinerarioOriginalDetectadoId: createTicketDto.itinerarioOriginalDetectadoId || null,
+
       kilometrajeActual: createTicketDto.kilometrajeActual,
       kilometrajeAnterior: createTicketDto.kilometrajeAnterior,
       precintoNuevo: createTicketDto.precintoNuevo,
@@ -85,88 +94,237 @@ export class TicketsAbastecimientoService {
     return this.transformToResponseDto(ticket);
   }
 
- async findAll(queryDto: QueryTicketDto) {
-  const { page, limit, search, orderBy, orderDirection, ...filters } = queryDto;
-  
-  const skip = (page - 1) * Math.min(limit, 100);
-  const take = Math.min(limit, 100);
+  async findAll(queryDto: QueryTicketDto) {
+    const { page, limit, search, orderBy, orderDirection, ...filters } = queryDto;
 
-  // Construir condiciones WHERE
-  const whereConditions: any = {
-    AND: []
-  };
+    const skip = (page - 1) * Math.min(limit, 100);
+    const take = Math.min(limit, 100);
 
-  // Filtro de búsqueda general
-  if (search) {
-    whereConditions.AND.push({
-      OR: [
-        { numeroTicket: { contains: search, mode: 'insensitive' } },
-        { unidad: { placa: { contains: search, mode: 'insensitive' } } },
-        { conductor: { nombres: { contains: search, mode: 'insensitive' } } },
-        { conductor: { apellidos: { contains: search, mode: 'insensitive' } } },
-        { conductor: { dni: { contains: search, mode: 'insensitive' } } }
-      ]
-    });
-  }
+    // Construir condiciones WHERE
+    const whereConditions: any = {
+      AND: []
+    };
 
-  // Filtros específicos
-  if (filters.unidadId) {
-    whereConditions.AND.push({ unidadId: filters.unidadId });
-  }
-
-  if (filters.conductorId) {
-    whereConditions.AND.push({ conductorId: filters.conductorId });
-  }
-
-  if (filters.grifoId) {
-    whereConditions.AND.push({ grifoId: filters.grifoId });
-  }
-
-  if (filters.estadoId) {
-    whereConditions.AND.push({ estadoId: filters.estadoId });
-  }
-
-  if (filters.tipoCombustible) {
-    whereConditions.AND.push({ tipoCombustible: filters.tipoCombustible });
-  }
-
-  // Filtro de fechas
-  if (filters.fechaInicio || filters.fechaFin) {
-    const fechaConditions: any = {};
-    if (filters.fechaInicio) {
-      fechaConditions.gte = new Date(filters.fechaInicio);
+    // Filtro de búsqueda general
+    if (search) {
+      whereConditions.AND.push({
+        OR: [
+          { numeroTicket: { contains: search, mode: 'insensitive' } },
+          { unidad: { placa: { contains: search, mode: 'insensitive' } } },
+          { conductor: { nombres: { contains: search, mode: 'insensitive' } } },
+          { conductor: { apellidos: { contains: search, mode: 'insensitive' } } },
+          { conductor: { dni: { contains: search, mode: 'insensitive' } } }
+        ]
+      });
     }
-    if (filters.fechaFin) {
-      fechaConditions.lte = new Date(filters.fechaFin);
+
+    // Filtros específicos
+    if (filters.unidadId) {
+      whereConditions.AND.push({ unidadId: filters.unidadId });
     }
-    whereConditions.AND.push({ fecha: fechaConditions });
-  }
 
-  // Filtro solo pendientes
-  if (filters.solosPendientes) {
-    whereConditions.AND.push({
-      estado: { nombre: 'SOLICITADO' }
+    if (filters.conductorId) {
+      whereConditions.AND.push({ conductorId: filters.conductorId });
+    }
+
+    if (filters.grifoId) {
+      whereConditions.AND.push({ grifoId: filters.grifoId });
+    }
+
+    if (filters.estadoId) {
+      whereConditions.AND.push({ estadoId: filters.estadoId });
+    }
+
+    if (filters.tipoCombustible) {
+      whereConditions.AND.push({ tipoCombustible: filters.tipoCombustible });
+    }
+
+    // Filtro de fechas
+    if (filters.fechaInicio || filters.fechaFin) {
+      const fechaConditions: any = {};
+      if (filters.fechaInicio) {
+        fechaConditions.gte = new Date(filters.fechaInicio);
+      }
+      if (filters.fechaFin) {
+        fechaConditions.lte = new Date(filters.fechaFin);
+      }
+      whereConditions.AND.push({ fecha: fechaConditions });
+    }
+
+    // Filtro solo pendientes
+    if (filters.solosPendientes) {
+      whereConditions.AND.push({
+        estado: { nombre: 'SOLICITADO' }
+      });
+    }
+
+    // Si no hay condiciones, remover el AND vacío
+    if (whereConditions.AND.length === 0) {
+      delete whereConditions.AND;
+    }
+
+    // Configurar ordenamiento
+    const orderByClause = this.buildOrderBy(orderBy, orderDirection);
+
+    // ========== OPTIMIZACIÓN: SELECT ESPECÍFICO ==========
+    // Ejecutar consultas con SELECT optimizado
+    const [tickets, total] = await Promise.all([
+      this.prisma.ticketAbastecimiento.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy: orderByClause,
+        select: {
+          // Campos principales del ticket
+          id: true,
+          numeroTicket: true,
+          fecha: true,
+          hora: true,
+          kilometrajeActual: true,
+          kilometrajeAnterior: true,
+          precintoNuevo: true,
+          tipoCombustible: true,
+          cantidad: true,
+          observacionesSolicitud: true,
+          fechaSolicitud: true,
+          motivoRechazo: true,
+          fechaRechazo: true,
+          createdAt: true,
+          updatedAt: true,
+
+          // Turno - Solo campos esenciales
+          turno: {
+            select: {
+              id: true,
+              nombre: true,
+              horaInicio: true,
+              horaFin: true
+            }
+          },
+
+          // Unidad - Solo campos esenciales
+          unidad: {
+            select: {
+              id: true,
+              placa: true,
+              marca: true,
+              modelo: true,
+              tipoCombustible: true
+            }
+          },
+
+          // Conductor - Solo campos esenciales
+          conductor: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+              dni: true,
+              codigoEmpleado: true
+            }
+          },
+
+          // Grifo - Solo campos esenciales
+          grifo: {
+            select: {
+              id: true,
+              nombre: true,
+              codigo: true,
+              direccion: true
+            }
+          },
+
+          // Ruta - Solo campos esenciales (opcional)
+          ruta: {
+            select: {
+              id: true,
+              nombre: true,
+              codigo: true,
+              origen: true,
+              destino: true
+            }
+          },
+
+          // Estado - Solo campos esenciales
+          estado: {
+            select: {
+              id: true,
+              nombre: true,
+              descripcion: true,
+              color: true
+            }
+          },
+
+          // Usuario que solicitó - Solo campos esenciales
+          solicitadoPor: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+              codigoEmpleado: true
+            }
+          },
+
+          // Usuario que rechazó - Solo campos esenciales (opcional)
+          rechazadoPor: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+              codigoEmpleado: true
+            }
+          }
+        }
+      }),
+      this.prisma.ticketAbastecimiento.count({ where: whereConditions })
+    ]);
+
+    // Calcular diferencia de kilometraje para cada ticket
+    const ticketsConDiferencia = tickets.map(ticket => {
+      // Convertir Decimal a Number primero
+      const kmActual = Number(ticket.kilometrajeActual) || 0;
+      const kmAnterior = ticket.kilometrajeAnterior ? Number(ticket.kilometrajeAnterior) : null;
+
+      // Calcular diferencia
+      const diferenciaKilometraje = kmAnterior
+        ? Number((kmActual - kmAnterior).toFixed(2))
+        : 0;
+
+      return {
+        ...ticket,
+        diferenciaKilometraje,
+        // Formatear fechas y horas
+        fecha: ticket.fecha?.toISOString().split('T')[0],
+        hora: ticket.hora?.toISOString().split('T')[1]?.split('.')[0],
+        // Convertir Decimals de Prisma a Numbers
+        kilometrajeActual: kmActual,
+        kilometrajeAnterior: kmAnterior,
+        cantidad: Number(ticket.cantidad) || 0
+      };
     });
+
+    return {
+      data: ticketsConDiferencia,
+      meta: {
+        total,
+        page,
+        pageSize: take,
+        totalPages: Math.ceil(total / take),
+        hasNextPage: page < Math.ceil(total / take),
+        hasPreviousPage: page > 1
+      }
+    };
   }
 
-  // Si no hay condiciones, remover el AND vacío
-  if (whereConditions.AND.length === 0) {
-    delete whereConditions.AND;
-  }
 
-  // Configurar ordenamiento
-  const orderByClause = this.buildOrderBy(orderBy, orderDirection);
+  /**
+   * Obtener ticket por ID
+   */
 
-  // ========== OPTIMIZACIÓN: SELECT ESPECÍFICO ==========
-  // Ejecutar consultas con SELECT optimizado
-  const [tickets, total] = await Promise.all([
-    this.prisma.ticketAbastecimiento.findMany({
-      where: whereConditions,
-      skip,
-      take,
-      orderBy: orderByClause,
+  async findOne(id: number) {
+    const ticket = await this.prisma.ticketAbastecimiento.findUnique({
+      where: { id },
       select: {
-        // Campos principales del ticket
         id: true,
         numeroTicket: true,
         fecha: true,
@@ -182,8 +340,7 @@ export class TicketsAbastecimientoService {
         fechaRechazo: true,
         createdAt: true,
         updatedAt: true,
-        
-        // Turno - Solo campos esenciales
+
         turno: {
           select: {
             id: true,
@@ -192,19 +349,21 @@ export class TicketsAbastecimientoService {
             horaFin: true
           }
         },
-        
-        // Unidad - Solo campos esenciales
         unidad: {
           select: {
             id: true,
             placa: true,
             marca: true,
             modelo: true,
-            tipoCombustible: true
+            tipoCombustible: true,
+            // zona: {
+            //   select: {
+            //     id: true,
+            //     nombre: true
+            //   }
+            // }
           }
         },
-        
-        // Conductor - Solo campos esenciales
         conductor: {
           select: {
             id: true,
@@ -214,8 +373,6 @@ export class TicketsAbastecimientoService {
             codigoEmpleado: true
           }
         },
-        
-        // Grifo - Solo campos esenciales
         grifo: {
           select: {
             id: true,
@@ -224,8 +381,6 @@ export class TicketsAbastecimientoService {
             direccion: true
           }
         },
-        
-        // Ruta - Solo campos esenciales (opcional)
         ruta: {
           select: {
             id: true,
@@ -235,8 +390,6 @@ export class TicketsAbastecimientoService {
             destino: true
           }
         },
-        
-        // Estado - Solo campos esenciales
         estado: {
           select: {
             id: true,
@@ -245,8 +398,6 @@ export class TicketsAbastecimientoService {
             color: true
           }
         },
-        
-        // Usuario que solicitó - Solo campos esenciales
         solicitadoPor: {
           select: {
             id: true,
@@ -255,8 +406,6 @@ export class TicketsAbastecimientoService {
             codigoEmpleado: true
           }
         },
-        
-        // Usuario que rechazó - Solo campos esenciales (opcional)
         rechazadoPor: {
           select: {
             id: true,
@@ -266,171 +415,31 @@ export class TicketsAbastecimientoService {
           }
         }
       }
-    }),
-    this.prisma.ticketAbastecimiento.count({ where: whereConditions })
-  ]);
+    });
 
-  // Calcular diferencia de kilometraje para cada ticket
-  const ticketsConDiferencia = tickets.map(ticket => {
-    // Convertir Decimal a Number primero
+    if (!ticket) {
+      throw new NotFoundException(`Ticket con ID ${id} no encontrado`);
+    }
+
+    // Convertir Decimals a Number primero
     const kmActual = Number(ticket.kilometrajeActual) || 0;
     const kmAnterior = ticket.kilometrajeAnterior ? Number(ticket.kilometrajeAnterior) : null;
-    
-    // Calcular diferencia
-    const diferenciaKilometraje = kmAnterior 
+
+    // Calcular diferencia de kilometraje
+    const diferenciaKilometraje = kmAnterior
       ? Number((kmActual - kmAnterior).toFixed(2))
       : 0;
 
     return {
       ...ticket,
       diferenciaKilometraje,
-      // Formatear fechas y horas
       fecha: ticket.fecha?.toISOString().split('T')[0],
       hora: ticket.hora?.toISOString().split('T')[1]?.split('.')[0],
-      // Convertir Decimals de Prisma a Numbers
       kilometrajeActual: kmActual,
       kilometrajeAnterior: kmAnterior,
       cantidad: Number(ticket.cantidad) || 0
     };
-  });
-
-  return {
-    data: ticketsConDiferencia,
-    meta: {
-      total,
-      page,
-      pageSize: take,
-      totalPages: Math.ceil(total / take),
-      hasNextPage: page < Math.ceil(total / take),
-      hasPreviousPage: page > 1
-    }
-  };
-}
-
-
-  /**
-   * Obtener ticket por ID
-   */
-  
-  async findOne(id: number) {
-  const ticket = await this.prisma.ticketAbastecimiento.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      numeroTicket: true,
-      fecha: true,
-      hora: true,
-      kilometrajeActual: true,
-      kilometrajeAnterior: true,
-      precintoNuevo: true,
-      tipoCombustible: true,
-      cantidad: true,
-      observacionesSolicitud: true,
-      fechaSolicitud: true,
-      motivoRechazo: true,
-      fechaRechazo: true,
-      createdAt: true,
-      updatedAt: true,
-      
-      turno: {
-        select: {
-          id: true,
-          nombre: true,
-          horaInicio: true,
-          horaFin: true
-        }
-      },
-      unidad: {
-        select: {
-          id: true,
-          placa: true,
-          marca: true,
-          modelo: true,
-          tipoCombustible: true,
-          // zona: {
-          //   select: {
-          //     id: true,
-          //     nombre: true
-          //   }
-          // }
-        }
-      },
-      conductor: {
-        select: {
-          id: true,
-          nombres: true,
-          apellidos: true,
-          dni: true,
-          codigoEmpleado: true
-        }
-      },
-      grifo: {
-        select: {
-          id: true,
-          nombre: true,
-          codigo: true,
-          direccion: true
-        }
-      },
-      ruta: {
-        select: {
-          id: true,
-          nombre: true,
-          codigo: true,
-          origen: true,
-          destino: true
-        }
-      },
-      estado: {
-        select: {
-          id: true,
-          nombre: true,
-          descripcion: true,
-          color: true
-        }
-      },
-      solicitadoPor: {
-        select: {
-          id: true,
-          nombres: true,
-          apellidos: true,
-          codigoEmpleado: true
-        }
-      },
-      rechazadoPor: {
-        select: {
-          id: true,
-          nombres: true,
-          apellidos: true,
-          codigoEmpleado: true
-        }
-      }
-    }
-  });
-
-  if (!ticket) {
-    throw new NotFoundException(`Ticket con ID ${id} no encontrado`);
   }
-
-  // Convertir Decimals a Number primero
-  const kmActual = Number(ticket.kilometrajeActual) || 0;
-  const kmAnterior = ticket.kilometrajeAnterior ? Number(ticket.kilometrajeAnterior) : null;
-
-  // Calcular diferencia de kilometraje
-  const diferenciaKilometraje = kmAnterior 
-    ? Number((kmActual - kmAnterior).toFixed(2))
-    : 0;
-
-  return {
-    ...ticket,
-    diferenciaKilometraje,
-    fecha: ticket.fecha?.toISOString().split('T')[0],
-    hora: ticket.hora?.toISOString().split('T')[1]?.split('.')[0],
-    kilometrajeActual: kmActual,
-    kilometrajeAnterior: kmAnterior,
-    cantidad: Number(ticket.cantidad) || 0
-  };
-}
 
   /**
    * Actualizar ticket (solo si está en estado SOLICITADO)
@@ -470,7 +479,7 @@ export class TicketsAbastecimientoService {
     // Validar kilometraje si se está actualizando
     if (updateTicketDto.kilometrajeActual || updateTicketDto.kilometrajeAnterior) {
       const kmActual = updateTicketDto.kilometrajeActual ?? Number(existingTicket.kilometrajeActual);
-      const kmAnterior = updateTicketDto.kilometrajeAnterior ?? 
+      const kmAnterior = updateTicketDto.kilometrajeAnterior ??
         (existingTicket.kilometrajeAnterior ? Number(existingTicket.kilometrajeAnterior) : undefined);
 
       if (kmAnterior) {
@@ -489,7 +498,7 @@ export class TicketsAbastecimientoService {
       data: {
         ...updateTicketDto,
         fecha: updateTicketDto.fecha ? new Date(updateTicketDto.fecha) : undefined,
-        hora: updateTicketDto.hora ? 
+        hora: updateTicketDto.hora ?
           new Date(`1970-01-01T${updateTicketDto.hora}Z`) : undefined,
         precintoNuevo: updateTicketDto.precintoNuevo?.toUpperCase(),
         updatedAt: new Date()
@@ -672,7 +681,7 @@ export class TicketsAbastecimientoService {
       aprobados: ticketsAprobados,
       rechazados: ticketsRechazados,
       hoy: ticketsHoy,
-      porcentajeAprobacion: totalTickets > 0 ? 
+      porcentajeAprobacion: totalTickets > 0 ?
         Number(((ticketsAprobados / totalTickets) * 100).toFixed(2)) : 0
     };
   }
@@ -727,7 +736,7 @@ export class TicketsAbastecimientoService {
    * Validar que todas las referencias existan y estén activas
    */
   private async validateReferences(createDto: CreateTicketAbastecimientoDto) {
-    const [unidad, conductor, grifo, turno, ruta] = await Promise.all([
+    const [unidad, conductor, grifo, turno] = await Promise.all([
       this.prisma.unidad.findFirst({
         where: { id: createDto.unidadId, activo: true }
       }),
@@ -740,9 +749,6 @@ export class TicketsAbastecimientoService {
       createDto.turnoId ? this.prisma.turno.findFirst({
         where: { id: createDto.turnoId, activo: true }
       }) : null,
-      createDto.rutaId ? this.prisma.ruta.findFirst({
-        where: { id: createDto.rutaId, estado: 'ACTIVA' }
-      }) : null
     ]);
 
     if (!unidad) {
@@ -761,16 +767,16 @@ export class TicketsAbastecimientoService {
       throw new BadRequestException(`Turno con ID ${createDto.turnoId} no encontrado o inactivo`);
     }
 
-    if (createDto.rutaId && !ruta) {
-      throw new BadRequestException(`Ruta con ID ${createDto.rutaId} no encontrada o inactiva`);
-    }
-
+    
     // Validar compatibilidad de tipo de combustible
     if (createDto.tipoCombustible !== unidad.tipoCombustible) {
       throw new BadRequestException(
         `Tipo de combustible ${createDto.tipoCombustible} no compatible con unidad (${unidad.tipoCombustible})`
       );
     }
+
+    //  NUEVA: Validar asignación de itinerario/ruta
+    await this.validarAsignacionItinerario(createDto);
   }
 
   /**
@@ -820,107 +826,107 @@ export class TicketsAbastecimientoService {
   */
 
   async getUltimoTicketUnidad(unidadId: number) {
-  // Validar que la unidad existe
-  const unidad = await this.prisma.unidad.findUnique({
-    where: { id: unidadId, activo: true },
-    select: {
-      id: true,
-      placa: true,
-      marca: true,
-      modelo: true,
-      tipoCombustible: true,
-      capacidadTanque: true
+    // Validar que la unidad existe
+    const unidad = await this.prisma.unidad.findUnique({
+      where: { id: unidadId, activo: true },
+      select: {
+        id: true,
+        placa: true,
+        marca: true,
+        modelo: true,
+        tipoCombustible: true,
+        capacidadTanque: true
+      }
+    });
+
+    if (!unidad) {
+      throw new NotFoundException(`Unidad con ID ${unidadId} no encontrada o inactiva`);
     }
-  });
 
-  if (!unidad) {
-    throw new NotFoundException(`Unidad con ID ${unidadId} no encontrada o inactiva`);
-  }
-
-  // Buscar último ticket de esta unidad
-  const ultimoTicket = await this.prisma.ticketAbastecimiento.findFirst({
-    where: { 
-      unidadId,
-      // Opcional: solo considerar tickets aprobados o concluidos
-      // estado: { nombre: { in: ['APROBADO', 'CONCLUIDO'] } }
-    },
-    orderBy: [
-      { fecha: 'desc' },
-      { hora: 'desc' }
-    ],
-    select: {
-      id: true,
-      numeroTicket: true,
-      fecha: true,
-      hora: true,
-      kilometrajeActual: true,
-      kilometrajeAnterior: true,
-      precintoNuevo: true,
-      tipoCombustible: true,
-      cantidad: true,
-      estado: {
-        select: {
-          id: true,
-          nombre: true,
-          color: true
-        }
+    // Buscar último ticket de esta unidad
+    const ultimoTicket = await this.prisma.ticketAbastecimiento.findFirst({
+      where: {
+        unidadId,
+        // Opcional: solo considerar tickets aprobados o concluidos
+        // estado: { nombre: { in: ['APROBADO', 'CONCLUIDO'] } }
       },
-      conductor: {
-        select: {
-          id: true,
-          nombres: true,
-          apellidos: true
-        }
-      },
-      grifo: {
-        select: {
-          id: true,
-          nombre: true
+      orderBy: [
+        { fecha: 'desc' },
+        { hora: 'desc' }
+      ],
+      select: {
+        id: true,
+        numeroTicket: true,
+        fecha: true,
+        hora: true,
+        kilometrajeActual: true,
+        kilometrajeAnterior: true,
+        precintoNuevo: true,
+        tipoCombustible: true,
+        cantidad: true,
+        estado: {
+          select: {
+            id: true,
+            nombre: true,
+            color: true
+          }
+        },
+        conductor: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true
+          }
+        },
+        grifo: {
+          select: {
+            id: true,
+            nombre: true
+          }
         }
       }
-    }
-  });
+    });
 
-  if (!ultimoTicket) {
-    // Si no hay tickets previos, retornar solo info de la unidad
+    if (!ultimoTicket) {
+      // Si no hay tickets previos, retornar solo info de la unidad
+      return {
+        unidad,
+        ultimoTicket: null,
+        mensaje: 'No hay tickets previos para esta unidad. Primer abastecimiento.'
+      };
+    }
+
+    // Formatear respuesta
+    const kmActual = Number(ultimoTicket.kilometrajeActual);
+    const kmAnterior = ultimoTicket.kilometrajeAnterior
+      ? Number(ultimoTicket.kilometrajeAnterior)
+      : null;
+
     return {
       unidad,
-      ultimoTicket: null,
-      mensaje: 'No hay tickets previos para esta unidad. Primer abastecimiento.'
+      ultimoTicket: {
+        id: ultimoTicket.id,
+        numeroTicket: ultimoTicket.numeroTicket,
+        fecha: ultimoTicket.fecha?.toISOString().split('T')[0],
+        hora: ultimoTicket.hora?.toISOString().split('T')[1]?.split('.')[0],
+        kilometrajeActual: kmActual,
+        kilometrajeAnterior: kmAnterior,
+        diferenciaKilometraje: kmAnterior ? kmActual - kmAnterior : 0,
+        precintoNuevo: ultimoTicket.precintoNuevo,
+        tipoCombustible: ultimoTicket.tipoCombustible,
+        cantidad: Number(ultimoTicket.cantidad),
+        estado: ultimoTicket.estado,
+        conductor: ultimoTicket.conductor,
+        grifo: ultimoTicket.grifo
+      },
+      sugerencias: {
+        // El kilometraje anterior del NUEVO ticket debe ser >= al actual del último
+        kilometrajeAnteriorSugerido: kmActual,
+        // El precinto anterior del NUEVO ticket es el nuevo del último
+        precintoAnteriorSugerido: ultimoTicket.precintoNuevo
+      }
     };
   }
-
-  // Formatear respuesta
-  const kmActual = Number(ultimoTicket.kilometrajeActual);
-  const kmAnterior = ultimoTicket.kilometrajeAnterior 
-    ? Number(ultimoTicket.kilometrajeAnterior) 
-    : null;
-
-  return {
-    unidad,
-    ultimoTicket: {
-      id: ultimoTicket.id,
-      numeroTicket: ultimoTicket.numeroTicket,
-      fecha: ultimoTicket.fecha?.toISOString().split('T')[0],
-      hora: ultimoTicket.hora?.toISOString().split('T')[1]?.split('.')[0],
-      kilometrajeActual: kmActual,
-      kilometrajeAnterior: kmAnterior,
-      diferenciaKilometraje: kmAnterior ? kmActual - kmAnterior : 0,
-      precintoNuevo: ultimoTicket.precintoNuevo,
-      tipoCombustible: ultimoTicket.tipoCombustible,
-      cantidad: Number(ultimoTicket.cantidad),
-      estado: ultimoTicket.estado,
-      conductor: ultimoTicket.conductor,
-      grifo: ultimoTicket.grifo
-    },
-    sugerencias: {
-      // El kilometraje anterior del NUEVO ticket debe ser >= al actual del último
-      kilometrajeAnteriorSugerido: kmActual,
-      // El precinto anterior del NUEVO ticket es el nuevo del último
-      precintoAnteriorSugerido: ultimoTicket.precintoNuevo
-    }
-  };
-}
 
   /*
     ***************************************************************************************
@@ -946,9 +952,9 @@ export class TicketsAbastecimientoService {
   private async generateNumeroTicket(): Promise<string> {
     const year = new Date().getFullYear();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    
+
     const prefix = `TK-${year}-${month}`;
-    
+
     const lastTicket = await this.prisma.ticketAbastecimiento.findFirst({
       where: {
         numeroTicket: { startsWith: prefix }
@@ -957,7 +963,7 @@ export class TicketsAbastecimientoService {
     });
 
     let nextNumber = 1;
-    
+
     if (lastTicket) {
       const lastNumber = parseInt(lastTicket.numeroTicket.split('-').pop() || '0');
       nextNumber = lastNumber + 1;
@@ -970,123 +976,161 @@ export class TicketsAbastecimientoService {
    * Construir cláusula orderBy
    */
   private buildOrderBy(orderBy: string, orderDirection: 'asc' | 'desc') {
-  const validOrderFields = {
-    fecha: { fecha: orderDirection },
-    numeroTicket: { numeroTicket: orderDirection },
-    unidad: { unidad: { placa: orderDirection } },
-    conductor: { conductor: { apellidos: orderDirection } },
-    cantidad: { cantidad: orderDirection },
-    estado: { estado: { nombre: orderDirection } },
-    kilometrajeActual: { kilometrajeActual: orderDirection }
-  };
+    const validOrderFields = {
+      fecha: { fecha: orderDirection },
+      numeroTicket: { numeroTicket: orderDirection },
+      unidad: { unidad: { placa: orderDirection } },
+      conductor: { conductor: { apellidos: orderDirection } },
+      cantidad: { cantidad: orderDirection },
+      estado: { estado: { nombre: orderDirection } },
+      kilometrajeActual: { kilometrajeActual: orderDirection }
+    };
 
-  return validOrderFields[orderBy] || { fecha: 'desc', numeroTicket: 'desc' };
-}
+    return validOrderFields[orderBy] || { fecha: 'desc', numeroTicket: 'desc' };
+  }
 
   /**
    * Opciones de include para consultas
    */
   private getIncludeOptions() {
-    return {
-      turno: {
-        select: {
-          id: true,
-          nombre: true,
-          horaInicio: true,
-          horaFin: true
-        }
-      },
-      unidad: {
-        select: {
-          id: true,
-          placa: true,
-          marca: true,
-          modelo: true,
-          tipoCombustible: true,
-          capacidadTanque: true
-        }
-      },
-      conductor: {
-        select: {
-          id: true,
-          nombres: true,
-          apellidos: true,
-          dni: true,
-          codigoEmpleado: true
-        }
-      },
-      grifo: {
-        include: {
-          sede: {
-            include: {
-              zona: {
-                select: {
-                  id: true,
-                  nombre: true
-                }
+  return {
+    turno: {
+      select: {
+        id: true,
+        nombre: true,
+        horaInicio: true,
+        horaFin: true
+      }
+    },
+    unidad: {
+      select: {
+        id: true,
+        placa: true,
+        marca: true,
+        modelo: true,
+        tipoCombustible: true,
+        capacidadTanque: true
+      }
+    },
+    conductor: {
+      select: {
+        id: true,
+        nombres: true,
+        apellidos: true,
+        dni: true,
+        codigoEmpleado: true
+      }
+    },
+    grifo: {
+      include: {
+        sede: {
+          include: {
+            zona: {
+              select: {
+                id: true,
+                nombre: true
               }
             }
           }
         }
-      },
-      ruta: {
-        select: {
-          id: true,
-          nombre: true,
-          codigo: true,
-          origen: true,
-          destino: true,
-          distanciaKm: true
-        }
-      },
-      estado: {
-        select: {
-          id: true,
-          nombre: true,
-          descripcion: true,
-          color: true
-        }
-      },
-      solicitadoPor: {
-        select: {
-          id: true,
-          nombres: true,
-          apellidos: true,
-          codigoEmpleado: true
-        }
-      },
-      rechazadoPor: {
-        select: {
-          id: true,
-          nombres: true,
-          apellidos: true,
-          codigoEmpleado: true
+      }
+    },
+    ruta: {
+      select: {
+        id: true,
+        nombre: true,
+        codigo: true,
+        origen: true,
+        destino: true,
+        distanciaKm: true
+      }
+    },
+    // 🔥 NUEVO: Incluir itinerario asignado (al mismo nivel que ruta)
+    itinerario: {
+      select: {
+        id: true,
+        nombre: true,
+        codigo: true,
+        tipoItinerario: true,
+        distanciaTotal: true,
+        diasOperacion: true,
+        horaInicioHabitual: true
+      }
+    },
+    // 🔥 NUEVO: Incluir itinerario detectado originalmente
+    itinerarioOriginalDetectado: {
+      select: {
+        id: true,
+        nombre: true,
+        codigo: true,
+        tipoItinerario: true,
+        distanciaTotal: true,
+        diasOperacion: true
+      }
+    },
+    // 🔥 NUEVO: Incluir ejecución de itinerario
+    ejecucionItinerario: {
+      select: {
+        id: true,
+        fechaProgramada: true,
+        estado: true,
+        itinerario: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true
+          }
         }
       }
-    };
-  }
+    },
+    estado: {
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        color: true
+      }
+    },
+    solicitadoPor: {
+      select: {
+        id: true,
+        nombres: true,
+        apellidos: true,
+        codigoEmpleado: true
+      }
+    },
+    rechazadoPor: {
+      select: {
+        id: true,
+        nombres: true,
+        apellidos: true,
+        codigoEmpleado: true
+      }
+    }
+  };
+}
 
-  async findByEstado(estadoNombre: string,queryDto?: QueryTicketDto) {
+  async findByEstado(estadoNombre: string, queryDto?: QueryTicketDto) {
     const { page = 1, limit = 10, search, orderBy = 'fecha', orderDirection = 'desc' } = queryDto || {};
-    
+
     const pageSize = Math.min(limit, 100);
     const offset = (page - 1) * pageSize;
-  
+
     // Verificar que el estado existe
     const estado = await this.prisma.estadoTicketAbastecimiento.findFirst({
       where: { nombre: estadoNombre.toUpperCase() }
     });
-  
+
     if (!estado) {
       throw new NotFoundException(`Estado "${estadoNombre}" no encontrado`);
     }
-  
+
     // Construir condiciones WHERE
     const whereConditions: any = {
       estadoId: estado.id,
       AND: []
     };
-  
+
     // Filtro de búsqueda general
     if (search) {
       whereConditions.AND.push({
@@ -1099,12 +1143,12 @@ export class TicketsAbastecimientoService {
         ]
       });
     }
-  
+
     // Limpiar AND si está vacío
     if (whereConditions.AND.length === 0) {
       delete whereConditions.AND;
     }
-  
+
     // Obtener tickets y total
     const [tickets, total] = await Promise.all([
       this.prisma.ticketAbastecimiento.findMany({
@@ -1116,16 +1160,16 @@ export class TicketsAbastecimientoService {
       }),
       this.prisma.ticketAbastecimiento.count({ where: whereConditions })
     ]);
-  
+
     const data = tickets.map(ticket => this.transformToResponseDto(ticket));
-  
+
     // Calcular metadata
     const totalPages = Math.ceil(total / pageSize);
     const hasNext = page < totalPages;
     const hasPrevious = page > 1;
     const nextOffset = hasNext ? page * pageSize : null;
     const prevOffset = hasPrevious ? (page - 2) * pageSize : null;
-  
+
     return {
       success: true,
       message: `Tickets con estado "${estadoNombre}" obtenidos exitosamente`,
@@ -1148,6 +1192,239 @@ export class TicketsAbastecimientoService {
   }
 
   /**
+ *  NUEVO: Detectar itinerario/ruta para una unidad en una fecha específica
+ */
+  async detectarItinerarioParaUnidad(
+    unidadId: number,
+    fecha: Date = new Date()
+  ): Promise<ItinerarioDetectadoResponseDto> {
+
+    // Validar que la unidad existe
+    const unidad = await this.prisma.unidad.findUnique({
+      where: { id: unidadId }
+    });
+
+    if (!unidad) {
+      throw new NotFoundException(`Unidad con ID ${unidadId} no encontrada`);
+    }
+
+    const fechaInicio = new Date(fecha);
+    fechaInicio.setHours(0, 0, 0, 0);
+    const fechaFin = new Date(fecha);
+    fechaFin.setHours(23, 59, 59, 999);
+
+    const diaSemana = fecha.toLocaleDateString('es-ES', { weekday: 'long' }).toUpperCase();
+
+    // PRIORIDAD 1: Buscar ejecución EN_CURSO para esta unidad HOY
+    const ejecucionActiva = await this.prisma.ejecucionItinerario.findFirst({
+      where: {
+        unidadId,
+        fechaProgramada: {
+          gte: fechaInicio,
+          lte: fechaFin
+        },
+        estado: 'EN_CURSO'
+      },
+      include: {
+        itinerario: true
+      }
+    });
+
+    if (ejecucionActiva) {
+      return {
+        itinerario: {
+          id: ejecucionActiva.itinerario.id,
+          nombre: ejecucionActiva.itinerario.nombre,
+          codigo: ejecucionActiva.itinerario.codigo,
+          tipoItinerario: ejecucionActiva.itinerario.tipoItinerario,
+          distanciaTotal: Number(ejecucionActiva.itinerario.distanciaTotal),
+          diasOperacion: ejecucionActiva.itinerario.diasOperacion,
+          horaInicioHabitual: ejecucionActiva.itinerario.horaInicioHabitual || undefined
+        },
+        ejecucionItinerarioId: ejecucionActiva.id,
+        origen: 'EJECUCION_ACTIVA',
+        mensaje: `La unidad está ejecutando el itinerario "${ejecucionActiva.itinerario.nombre}" en este momento`,
+        puedeModificar: false, // ❌ NO se puede cambiar si ya está en curso
+        detectado: true,
+        diaSemana,
+        fecha: fecha.toISOString().split('T')[0]
+      };
+    }
+
+    // PRIORIDAD 2: Buscar ruta excepcional para HOY
+    const rutaExcepcional = await this.prisma.unidadRuta.findFirst({
+      where: {
+        unidadId,
+        fechaViajeEspecifico: {
+          gte: fechaInicio,
+          lte: fechaFin
+        },
+        activo: true,
+        esUnaVez: true
+      },
+      include: {
+        ruta: true
+      }
+    });
+
+    if (rutaExcepcional) {
+      return {
+        ruta: {
+          id: rutaExcepcional.ruta.id,
+          nombre: rutaExcepcional.ruta.nombre,
+          codigo: rutaExcepcional.ruta.codigo || undefined,
+          origen: rutaExcepcional.ruta.origen || undefined,
+          destino: rutaExcepcional.ruta.destino || undefined,
+          distanciaKm: rutaExcepcional.ruta.distanciaKm ? Number(rutaExcepcional.ruta.distanciaKm) : undefined
+        },
+        origen: 'RUTA_EXCEPCIONAL',
+        mensaje: `Ruta excepcional programada: "${rutaExcepcional.ruta.nombre}" (${rutaExcepcional.motivoAsignacion})`,
+        puedeModificar: true, // ✅ Se puede cambiar si es necesario
+        detectado: true,
+        diaSemana,
+        fecha: fecha.toISOString().split('T')[0]
+      };
+    }
+
+    // PRIORIDAD 3: Buscar itinerario permanente que opere HOY
+    const itinerarioPermanente = await this.prisma.unidadItinerario.findFirst({
+      where: {
+        unidadId,
+        fechaDesasignacion: null,
+        esPermanente: true,
+        estado: 'ACTIVA',
+        diasEspecificos: {
+          has: diaSemana
+        }
+      },
+      include: {
+        itinerario: true
+      }
+    });
+
+    if (itinerarioPermanente) {
+      return {
+        itinerario: {
+          id: itinerarioPermanente.itinerario.id,
+          nombre: itinerarioPermanente.itinerario.nombre,
+          codigo: itinerarioPermanente.itinerario.codigo,
+          tipoItinerario: itinerarioPermanente.itinerario.tipoItinerario,
+          distanciaTotal: Number(itinerarioPermanente.itinerario.distanciaTotal),
+          diasOperacion: itinerarioPermanente.itinerario.diasOperacion,
+          horaInicioHabitual: itinerarioPermanente.itinerario.horaInicioHabitual || undefined
+        },
+        origen: 'ITINERARIO_PERMANENTE',
+        mensaje: `Itinerario permanente: "${itinerarioPermanente.itinerario.nombre}" opera los ${diaSemana}`,
+        puedeModificar: true, // ✅ Se puede cambiar por emergencia
+        detectado: true,
+        diaSemana,
+        fecha: fecha.toISOString().split('T')[0]
+      };
+    }
+
+    // NO SE ENCONTRÓ NINGUNA ASIGNACIÓN
+    return {
+      origen: 'NINGUNO',
+      mensaje: `No se detectó itinerario ni ruta asignada para esta unidad el día ${diaSemana}`,
+      puedeModificar: true,
+      detectado: false,
+      diaSemana,
+      fecha: fecha.toISOString().split('T')[0]
+    };
+  }
+
+  /**
+ * 🔥 NUEVO: Validar asignación de itinerario/ruta en el ticket
+ */
+  private async validarAsignacionItinerario(dto: CreateTicketAbastecimientoDto): Promise<void> {
+    // REGLA 1: No puede tener ruta E itinerario simultáneamente
+    if (dto.rutaId && dto.itinerarioId) {
+      throw new BadRequestException(
+        'No se puede asignar ruta e itinerario simultáneamente. Elija solo uno.'
+      );
+    }
+
+    // REGLA 2: Si origen es MANUAL, requiere motivo obligatorio
+    if (dto.origenAsignacion === 'MANUAL' && !dto.motivoCambioItinerario) {
+      throw new BadRequestException(
+        'Debe proporcionar un motivo si cambia el itinerario manualmente'
+      );
+    }
+
+    // REGLA 3: Si hay motivo, el origen debe ser MANUAL
+    if (dto.motivoCambioItinerario && dto.origenAsignacion !== 'MANUAL') {
+      throw new BadRequestException(
+        'Solo puede proporcionar un motivo si el origen de asignación es MANUAL'
+      );
+    }
+
+    // REGLA 4: Validar que el itinerario existe y está activo
+    if (dto.itinerarioId) {
+      const itinerario = await this.prisma.itinerario.findFirst({
+        where: {
+          id: dto.itinerarioId,
+          estado: 'ACTIVO'
+        }
+      });
+
+      if (!itinerario) {
+        throw new BadRequestException(
+          `Itinerario con ID ${dto.itinerarioId} no encontrado o inactivo`
+        );
+      }
+    }
+
+    // REGLA 5: Validar que la ruta existe y está activa
+    if (dto.rutaId) {
+      const ruta = await this.prisma.ruta.findFirst({
+        where: {
+          id: dto.rutaId,
+          estado: 'ACTIVA'
+        }
+      });
+
+      if (!ruta) {
+        throw new BadRequestException(
+          `Ruta con ID ${dto.rutaId} no encontrada o inactiva`
+        );
+      }
+    }
+
+    // REGLA 6: Validar que la ejecución existe y pertenece a la unidad
+    if (dto.ejecucionItinerarioId) {
+      const ejecucion = await this.prisma.ejecucionItinerario.findUnique({
+        where: { id: dto.ejecucionItinerarioId }
+      });
+
+      if (!ejecucion) {
+        throw new BadRequestException(
+          `Ejecución con ID ${dto.ejecucionItinerarioId} no encontrada`
+        );
+      }
+
+      // Validar que la ejecución pertenece a esta unidad
+      if (ejecucion.unidadId !== dto.unidadId) {
+        throw new BadRequestException(
+          `La ejecución ${dto.ejecucionItinerarioId} no pertenece a la unidad ${dto.unidadId}`
+        );
+      }
+    }
+
+    // REGLA 7: Si hay itinerario detectado, validar que existe
+    if (dto.itinerarioOriginalDetectadoId) {
+      const itinerarioDetectado = await this.prisma.itinerario.findUnique({
+        where: { id: dto.itinerarioOriginalDetectadoId }
+      });
+
+      if (!itinerarioDetectado) {
+        throw new BadRequestException(
+          `Itinerario detectado con ID ${dto.itinerarioOriginalDetectadoId} no encontrado`
+        );
+      }
+    }
+  }
+
+  /**
    * Transformar objeto de BD a DTO de respuesta
    */
   private transformToResponseDto(ticket: any): TicketAbastecimientoResponseDto {
@@ -1165,12 +1442,14 @@ export class TicketsAbastecimientoService {
       numeroTicket: ticket.numeroTicket,
       fecha: ticket.fecha?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
       hora: ticket.hora?.toISOString().split('T')[1]?.split('.')[0] || new Date().toISOString().split('T')[1]?.split('.')[0],
+
       turno: ticket.turno ? {
         id: ticket.turno.id,
         nombre: ticket.turno.nombre,
         horaInicio: ticket.turno.horaInicio?.toISOString().split('T')[1]?.split('.')[0] || '',
         horaFin: ticket.turno.horaFin?.toISOString().split('T')[1]?.split('.')[0] || ''
       } : undefined,
+
       unidad: ticket.unidad ? {
         id: ticket.unidad.id,
         placa: ticket.unidad.placa,
@@ -1178,6 +1457,7 @@ export class TicketsAbastecimientoService {
         modelo: ticket.unidad.modelo,
         tipoCombustible: ticket.unidad.tipoCombustible
       } : { id: 0, placa: '', marca: '', modelo: '', tipoCombustible: '' },
+
       conductor: ticket.conductor ? {
         id: ticket.conductor.id,
         nombres: ticket.conductor.nombres,
@@ -1185,12 +1465,14 @@ export class TicketsAbastecimientoService {
         dni: ticket.conductor.dni,
         codigoEmpleado: ticket.conductor.codigoEmpleado
       } : { id: 0, nombres: '', apellidos: '', dni: '', codigoEmpleado: '' },
+
       grifo: ticket.grifo ? {
         id: ticket.grifo.id,
         nombre: ticket.grifo.nombre,
         codigo: ticket.grifo.codigo,
         direccion: ticket.grifo.direccion
       } : { id: 0, nombre: '', codigo: '', direccion: '' },
+
       ruta: ticket.ruta ? {
         id: ticket.ruta.id,
         nombre: ticket.ruta.nombre,
@@ -1198,6 +1480,40 @@ export class TicketsAbastecimientoService {
         origen: ticket.ruta.origen,
         destino: ticket.ruta.destino
       } : undefined,
+
+      // 🔥 NUEVO: Itinerario asignado
+      itinerario: ticket.itinerario ? {
+        id: ticket.itinerario.id,
+        nombre: ticket.itinerario.nombre,
+        codigo: ticket.itinerario.codigo,
+        tipoItinerario: ticket.itinerario.tipoItinerario,
+        distanciaTotal: ticket.itinerario.distanciaTotal ? Number(ticket.itinerario.distanciaTotal) : undefined,
+        diasOperacion: ticket.itinerario.diasOperacion || []
+      } : undefined,
+
+      // NUEVO: ID de ejecución de itinerario
+      ejecucionItinerarioId: ticket.ejecucionItinerarioId || undefined,
+
+      // NUEVO: Origen de la asignación
+      origenAsignacion: ticket.origenAsignacion || 'NINGUNO',
+
+      // NUEVO: Motivo del cambio manual
+      motivoCambioItinerario: ticket.motivoCambioItinerario || undefined,
+
+      // NUEVO: ID del itinerario detectado originalmente
+      itinerarioOriginalDetectadoId: ticket.itinerarioOriginalDetectadoId || undefined,
+
+      // NUEVO: Itinerario detectado originalmente (para auditoría)
+      itinerarioOriginalDetectado: ticket.itinerarioOriginalDetectado ? {
+        id: ticket.itinerarioOriginalDetectado.id,
+        nombre: ticket.itinerarioOriginalDetectado.nombre,
+        codigo: ticket.itinerarioOriginalDetectado.codigo,
+        tipoItinerario: ticket.itinerarioOriginalDetectado.tipoItinerario,
+        distanciaTotal: ticket.itinerarioOriginalDetectado.distanciaTotal ?
+          Number(ticket.itinerarioOriginalDetectado.distanciaTotal) : undefined,
+        diasOperacion: ticket.itinerarioOriginalDetectado.diasOperacion || []
+      } : undefined,
+
       kilometrajeActual: kmActual,
       kilometrajeAnterior: kmAnterior,
       diferenciaKilometraje,
@@ -1205,31 +1521,34 @@ export class TicketsAbastecimientoService {
       tipoCombustible: ticket.tipoCombustible,
       cantidad: ticket.cantidad ? Number(ticket.cantidad) : 0,
       observacionesSolicitud: ticket.observacionesSolicitud,
+
       estado: ticket.estado ? {
         id: ticket.estado.id,
         nombre: ticket.estado.nombre,
         descripcion: ticket.estado.descripcion,
         color: ticket.estado.color
       } : { id: 0, nombre: '', descripcion: '', color: '' },
+
       solicitadoPor: ticket.solicitadoPor ? {
         id: ticket.solicitadoPor.id,
         nombres: ticket.solicitadoPor.nombres,
         apellidos: ticket.solicitadoPor.apellidos,
         codigoEmpleado: ticket.solicitadoPor.codigoEmpleado
       } : { id: 0, nombres: '', apellidos: '', codigoEmpleado: '' },
+
       fechaSolicitud: ticket.fechaSolicitud,
       motivoRechazo: ticket.motivoRechazo,
+
       rechazadoPor: ticket.rechazadoPor ? {
         id: ticket.rechazadoPor.id,
         nombres: ticket.rechazadoPor.nombres,
         apellidos: ticket.rechazadoPor.apellidos,
         codigoEmpleado: ticket.rechazadoPor.codigoEmpleado
       } : undefined,
+
       fechaRechazo: ticket.fechaRechazo,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt
     } as TicketAbastecimientoResponseDto;
   }
-
-  
 }
