@@ -24,6 +24,7 @@ import { UnidadItinerarioModule } from './unidad_itinerario/asignaciones-itinera
 import { ItinerarioHistorialModule } from './itinerario_historial/itinerario_historial.module';
 import { ValidacionAsignacionesModule } from './asignaciones/validacion/validacion-asignaciones.module';
 import { RutasExcepcionalesModule } from './rutas-excepcionales/rutas-excepcionales.module';
+import { CheckpointsRutaModule } from './checkpoints-ruta/checkpoints-ruta.module';
 
 @Module({
   imports: [
@@ -51,7 +52,7 @@ import { RutasExcepcionalesModule } from './rutas-excepcionales/rutas-excepciona
     UnidadItinerarioModule, 
     ItinerarioHistorialModule, 
     ValidacionAsignacionesModule, 
-    RutasExcepcionalesModule,
+    RutasExcepcionalesModule, CheckpointsRutaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

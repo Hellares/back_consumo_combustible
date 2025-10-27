@@ -221,6 +221,9 @@ model Usuario {
   eventosConductor      EventoUnidad[]  @relation("EventoConductor")
   archivosEventoSubidos ArchivoEvento[] @relation("ArchivoEventoSubidoPor")
 
+  //NUEVA RELACIÓN: Checkpoints registrados
+  checkpointsRegistrados CheckpointRuta[] @relation("CheckpointRegistrador")
+
   //SISTEMA DE RUTAS E ITINERARIOS
   asignacionesRutaExcepcional   UnidadRuta[]          @relation("UnidadRutaAsignador")
   autorizacionesRutaExcepcional UnidadRuta[]          @relation("UnidadRutaAutorizador")
@@ -898,6 +901,41 @@ model AlertaDesvio {
   @@map("alertas_desvio")
 }
 
+model CheckpointRuta {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int      @map("ticket_id")
+  
+  // Ubicación
+  latitud   Decimal  @db.Decimal(10, 8)
+  longitud  Decimal  @db.Decimal(11, 8)
+  
+  // Contexto
+  tipoCheckpoint    String   @db.VarChar(50) // INICIO, PARADA, LLEGADA, EMERGENCIA
+  descripcion       String?  // "Grifo Shell - Trujillo", "Peaje Chicama"
+  observaciones     String?
+  
+  // Datos adicionales
+  kilometrajeActual Decimal? @map("kilometraje_actual") @db.Decimal(10, 2)
+  horaRegistro      DateTime @default(now()) @map("hora_registro")
+  
+  // ¿Foto de evidencia?
+  urlFoto           String?  @map("url_foto")
+  
+  // Metadata
+  origenRegistro    String   @default("MANUAL") @map("origen_registro") @db.VarChar(20) // MANUAL, AUTOMATICO
+  registradoPorId   Int      @map("registrado_por")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relaciones
+  ticket        TicketAbastecimiento @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  registradoPor Usuario              @relation("CheckpointRegistrador", fields: [registradoPorId], references: [id])
+
+  @@index([ticketId, horaRegistro])
+  @@index([tipoCheckpoint])
+  @@map("checkpoints_ruta")
+}
+
 // ==============================
 // ESTADOS Y TURNOS
 // ==============================
@@ -986,6 +1024,7 @@ model TicketAbastecimiento {
   // Relación 1:1 con detalle
   detalleAbastecimiento DetalleAbastecimiento?
   archivos              ArchivoTicket[]
+  checkpointsRuta CheckpointRuta[]
 
   @@index([unidadId, fecha])
   @@index([conductorId, fecha])

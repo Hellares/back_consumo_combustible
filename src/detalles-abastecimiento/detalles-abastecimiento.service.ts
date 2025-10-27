@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class DetallesAbastecimientoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async findAll(
     queryDto: QueryDetalleDto,
@@ -15,8 +15,8 @@ export class DetallesAbastecimientoService {
     zonaId?: number,
     sedeId?: number
   ) {
-    const { 
-      page = 1, 
+    const {
+      page = 1,
       pageSize = 10,
       sortBy = 'fechaAprobacion',
       sortOrder = 'desc',
@@ -50,10 +50,10 @@ export class DetallesAbastecimientoService {
       ...(filters.ticketId && { ticketId: filters.ticketId }),
       ...(filters.controladorId && { controladorId: filters.controladorId }),
       ...(filters.aprobadoPorId && { aprobadoPorId: filters.aprobadoPorId }),
-      ...(filters.numeroTicketGrifo && { 
+      ...(filters.numeroTicketGrifo && {
         numeroTicketGrifo: { contains: filters.numeroTicketGrifo, mode: 'insensitive' as Prisma.QueryMode }
       }),
-      ...(filters.numeroFactura && { 
+      ...(filters.numeroFactura && {
         numeroFactura: { contains: filters.numeroFactura, mode: 'insensitive' as Prisma.QueryMode }
       }),
       ...(filters.fechaDesde || filters.fechaHasta) && {
@@ -85,7 +85,9 @@ export class DetallesAbastecimientoService {
                   }
                 }
               }
-            }
+            },
+            itinerario: true,
+            ruta: true
           }
         },
         controlador: true,
@@ -140,7 +142,9 @@ export class DetallesAbastecimientoService {
                   }
                 }
               }
-            }
+            },
+            itinerario: true,
+            ruta: true
           }
         },
         controlador: true,
@@ -173,7 +177,9 @@ export class DetallesAbastecimientoService {
                   }
                 }
               }
-            }
+            },
+            itinerario: true,
+            ruta: true
           }
         },
         controlador: true,
@@ -190,8 +196,8 @@ export class DetallesAbastecimientoService {
   }
 
   async cambiarEstado(
-    id: number, 
-    estado: string, 
+    id: number,
+    estado: string,
     usuarioId?: number
   ): Promise<DetalleAbastecimientoResponseDto> {
     const detalleExistente = await this.prisma.detalleAbastecimiento.findUnique({
@@ -241,7 +247,9 @@ export class DetallesAbastecimientoService {
                   }
                 }
               }
-            }
+            },
+            itinerario: true,
+            ruta: true
           }
         },
         controlador: true,
@@ -323,7 +331,9 @@ export class DetallesAbastecimientoService {
                   }
                 }
               }
-            }
+            },
+            itinerario: true,
+            ruta: true
           }
         },
         controlador: true,
@@ -336,7 +346,7 @@ export class DetallesAbastecimientoService {
   }
 
   async getEstadisticas(
-    fechaDesde?: string, 
+    fechaDesde?: string,
     fechaHasta?: string,
     grifoId?: number,
     zonaId?: number,
@@ -427,8 +437,26 @@ export class DetallesAbastecimientoService {
         grifoNombre: detalle.ticket.grifo.nombre,
         cantidad: detalle.ticket.cantidad ? Number(detalle.ticket.cantidad) : 0,
         estadoTicket: detalle.ticket.estado?.nombre || 'DESCONOCIDO',
-        estadoColor: detalle.ticket.estado?.color || '#gray'
+        estadoColor: detalle.ticket.estado?.color || '#gray',
+        itinerario: detalle.ticket.itinerario ? {
+          id: detalle.ticket.itinerario.id,
+          nombre: detalle.ticket.itinerario.nombre,
+          codigo: detalle.ticket.itinerario.codigo,
+          tipoItinerario: detalle.ticket.itinerario.tipoItinerario,
+          distanciaTotal: detalle.ticket.itinerario.distanciaTotal,
+          diasOperacion: detalle.ticket.itinerario.diasOperacion
+        } : null,
+        ruta: detalle.ticket.ruta ? {
+          id: detalle.ticket.ruta.id,
+          nombre: detalle.ticket.ruta.nombre,
+          codigo: detalle.ticket.ruta.codigo,
+          origen: detalle.ticket.ruta.origen,
+          destino: detalle.ticket.ruta.destino,
+          distanciaKm: detalle.ticket.ruta.distanciaKm
+        } : null,
+        origenAsignacion: detalle.ticket.origenAsignacion || 'NINGUNO'
       },
+
       controlador: detalle.controlador ? {
         id: detalle.controlador.id,
         nombreCompleto: `${detalle.controlador.nombres} ${detalle.controlador.apellidos}`,
