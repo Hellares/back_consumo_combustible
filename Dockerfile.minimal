@@ -42,7 +42,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Configurar NODE_OPTIONS para polyfills de crypto
-ENV NODE_OPTIONS="--crypto-global"
+#ENV NODE_OPTIONS="--crypto-global"
 
 COPY package*.json ./
 RUN npm ci --omit=dev
