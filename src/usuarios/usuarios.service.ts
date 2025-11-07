@@ -386,6 +386,11 @@ async asignarRol(usuarioId: number, asignarRolDto: AsignarRolDto): Promise<RolAs
     throw new ConflictException('No se puede asignar un rol inactivo');
   }
 
+  // Validar que el usuario no se asigne un rol a sí mismo
+  if (asignadoPorId && asignadoPorId === usuarioId) {
+    throw new ConflictException('Un usuario no puede asignarse roles a sí mismo');
+  }
+
   // Verificar que el usuario no tenga ya este rol activo
   const rolExistente = await this.prisma.usuarioRol.findFirst({
     where: {

@@ -85,22 +85,6 @@ export class UsuariosController {
     return this.usuariosService.findAll(paginationDto);
   }
 
-  // @Get(':id/roles')
-  // @ApiOperation({ summary: 'Obtener usuario por ID con sus roles asignados' })
-  // @ApiParam({ name: 'id', description: 'ID del usuario' })
-  // @ApiResponse({
-  //   status: 200,
-  //   description: 'Usuario con roles encontrado exitosamente',
-  //   type: UsuarioWithRolesResponseDto,
-  // })
-  // @ApiResponse({
-  //   status: 404,
-  //   description: 'Usuario no encontrado',
-  // })
-  // async findOneWithRoles(@Param('id', ParseIntPipe) id: number): Promise<UsuarioWithRolesResponseDto> {
-  //   return this.usuariosService.findOneWithRoles(id);
-  // }
-
   @Post(':id/roles')
   @ApiOperation({ summary: 'Asignar un rol adicional a un usuario' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })

@@ -27,10 +27,12 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { JwtPermissionsGuard } from '../auth/jwt/jwt-permissions.guard';
 import { UpdateDetalleDto } from './dto/update-detalles-abastecimiento.dto';
 import { ConcluirDetalleDto } from './dto/concluir-detalle.dto';
+import { HasRoles } from '@/auth/jwt/has-roles';
+import { JwtRole } from '@/auth/jwt/jwt-role';
+import { JwtRolesGuard } from '@/auth/jwt/jwt-roles.guard';
 
 @ApiTags('Detalles de Abastecimiento')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('detalles-abastecimiento')
 export class DetallesAbastecimientoController {
   constructor(
@@ -38,7 +40,8 @@ export class DetallesAbastecimientoController {
   ) {}
 
   @Get()
-  @UseGuards(JwtPermissionsGuard)
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   // @Permissions({ resource: 'abastecimientos', actions: ['read'] })
   @ApiOperation({ 
     summary: 'Listar detalles de abastecimiento con filtros de ubicación',
@@ -109,7 +112,8 @@ export class DetallesAbastecimientoController {
   }
 
   @Get('estadisticas')
-  @UseGuards(JwtPermissionsGuard)
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   // @Permissions({ resource: 'reportes', actions: ['read'] })
   @ApiOperation({ 
     summary: 'Obtener estadísticas de detalles con filtros de ubicación',
@@ -182,8 +186,8 @@ export class DetallesAbastecimientoController {
   }
 
   @Get('ticket/:ticketId')
-  @UseGuards(JwtPermissionsGuard)
-  // @Permissions({ resource: 'abastecimientos', actions: ['read'] })
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   @ApiOperation({ 
     summary: 'Obtener detalle por Ticket ID',
     description: 'Obtiene el detalle de abastecimiento asociado a un ticket específico'
@@ -264,7 +268,8 @@ export class DetallesAbastecimientoController {
   }
 
   @Patch(':id/estado')
-  // @UseGuards(JwtPermissionsGuard)
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @HasRoles(JwtRole.ADMIN, JwtRole.USER)
   @ApiOperation({ 
     summary: 'Cambiar estado del detalle (Concluir/Reabrir)',
     description: 'Cambia el estado del detalle entre EN_PROGRESO y CONCLUIDO'

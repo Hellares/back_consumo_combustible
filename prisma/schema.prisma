@@ -234,8 +234,46 @@ model Usuario {
   historialItinerarios   ItinerarioHistorial[] @relation("ItinerarioHistorialModificador")
   alertasDesvioResueltas AlertaDesvio[]        @relation("AlertaDesvioResolutor")
   unidad          Unidad?   @relation(fields: [unidadAsignada], references: [id])
+  
+  // Sistema de autenticación - Refresh Tokens
+  refreshTokens RefreshToken[]
 
   @@map("usuarios")
+}
+
+// ==============================
+// SISTEMA DE AUTENTICACIÓN - REFRESH TOKENS
+// ==============================
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(500)
+  usuarioId Int      @map("usuario_id")
+  
+  // Metadata del dispositivo/sesión
+  dispositivoId String? @map("dispositivo_id") @db.VarChar(100)
+  userAgent     String? @map("user_agent") @db.VarChar(500)
+  ipAddress     String? @map("ip_address") @db.VarChar(45)
+  
+  // Control de expiración
+  expiresAt DateTime @map("expires_at")
+  
+  // Control de revocación
+  revocado       Boolean   @default(false)
+  fechaRevocado  DateTime? @map("fecha_revocado")
+  motivoRevocado String?   @map("motivo_revocado") @db.VarChar(200)
+  
+  // Auditoría
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  
+  // Relación
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  @@index([usuarioId, revocado])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
 
 model UsuarioRol {

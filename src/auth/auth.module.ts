@@ -5,19 +5,22 @@ import { PrismaModule } from 'src/database/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { JwtPermissionsGuard } from './jwt/jwt-permissions.guard';
+import { ScheduleModule } from '@nestjs/schedule';
+import { CleanupTokensTask } from './tasks/cleanup-tokens.task';
 
 @Module({
   imports: [
     PrismaModule,
+    ScheduleModule.forRoot(),
     JwtModule.register({
       secret: process.env.JWT_SECRET,
-      signOptions: { 
-        expiresIn: '24h' // ✅ String literal fijo
+      signOptions: {
+        expiresIn: (process.env.JWT_ACCESS_EXPIRY || '15m') as any // Access token de corta duración
       },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtPermissionsGuard],
-  exports: [JwtPermissionsGuard],
+  providers: [AuthService, JwtStrategy, JwtPermissionsGuard, CleanupTokensTask],
+  exports: [JwtPermissionsGuard, AuthService],
 })
 export class AuthModule {}
