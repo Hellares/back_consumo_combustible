@@ -2,6 +2,9 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Instalar polyfills necesarios
+RUN npm install --save-optional node-polyfill-webpack-plugin
+
 # Copiar package files
 COPY package*.json ./
 RUN npm install
@@ -16,6 +19,9 @@ RUN npx prisma generate
 
 # Copiar código
 COPY src ./src
+
+# Configurar polyfills para crypto
+ENV NODE_OPTIONS="--crypto-global"
 
 # Build y mostrar TODO
 RUN set -x && \
@@ -34,6 +40,9 @@ RUN set -x && \
 FROM node:18-alpine
 
 WORKDIR /app
+
+# Configurar NODE_OPTIONS para polyfills de crypto
+ENV NODE_OPTIONS="--crypto-global"
 
 COPY package*.json ./
 RUN npm ci --omit=dev

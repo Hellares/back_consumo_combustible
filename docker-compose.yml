@@ -14,17 +14,31 @@ services:
       NODE_ENV: "production"
       DATABASE_URL: "postgresql://postgres:jtorres159.@postgres:5432/control_combustible_v4?connection_limit=50&pool_timeout=20&connect_timeout=60&statement_timeout=30000"
       JWT_SECRET: "tu-jwt-secret-muy-seguro-aqui-cambiar-en-produccion"
-      JWT_EXPIRES_IN: "1d"
+      JWT_EXPIRES_IN: "24h"
+      JWT_ACCESS_EXPIRY: "15m"
+      JWT_REFRESH_EXPIRY: "7d"
       DEFAULT_ROLE_NAME: "USER"
       CORS_ORIGIN: "https://combustible-api.syncronize.net.pe,https://syncronize.net.pe,https://www.syncronize.net.pe,https://api.syncronize.net.pe,http://localhost:3080,http://localhost:8080"
+      WEBSOCKET_URL: "https://combustible-api.syncronize.net.pe"
       CLOUDINARY_CLOUD_NAME: "doglf2gsy"
       CLOUDINARY_API_KEY: "485335513153247"
       CLOUDINARY_API_SECRET: "rVefITbGKMyrl9G2pmliO-uaAko"
 
       #Configuración de WebSocket
+      WS_PORT: "3000"
+      WS_NAMESPACE: "/gps"
+      WS_CORS_ORIGIN: "https://combustible-api.syncronize.net.pe"
       WS_PING_TIMEOUT: "60000"
       WS_PING_INTERVAL: "25000"
       WS_MAX_HTTP_BUFFER_SIZE: "1000000"
+
+      # Configuración GPS Tracking
+      GPS_INACTIVE_THRESHOLD_MINUTES: "5"
+      GPS_STOPPED_THRESHOLD_KMH: "5"
+      GPS_DEVICE_PRIORITY_MINUTES: "2"
+      GPS_BATCH_SIZE: "15"
+      GPS_BATCH_INTERVAL_MS: "5000"
+      GPS_DATA_RETENTION_DAYS: "30"
     
     ports:
       - "3080:3080"
