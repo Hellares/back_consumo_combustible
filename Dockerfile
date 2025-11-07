@@ -2,12 +2,14 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Instalar polyfills necesarios
-RUN npm install --save-optional node-polyfill-webpack-plugin
+# Instalar dependencias de sistema necesarias para paquetes nativos
+RUN apk add --no-cache python3 make g++
 
 # Copiar package files
 COPY package*.json ./
-RUN npm install
+
+# Usar npm install en lugar de npm ci para mayor compatibilidad
+RUN npm install --legacy-peer-deps
 
 # Copiar configuración
 COPY tsconfig*.json ./
@@ -41,11 +43,16 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Instalar dependencias de sistema necesarias para runtime
+RUN apk add --no-cache libc6-compat
+
 # Configurar NODE_OPTIONS para polyfills de crypto
 ENV NODE_OPTIONS="--crypto-global"
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+
+# Instalar solo dependencias de producción
+RUN npm install --omit=dev --legacy-peer-deps
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
