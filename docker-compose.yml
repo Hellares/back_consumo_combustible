@@ -4,7 +4,7 @@ services:
   combustible-api:
     build:
       context: .
-      dockerfile: Dockerfile.isolated
+      dockerfile: Dockerfile.minimal
     image: combustible-api:1.0.0
     container_name: combustible-api
     restart: always
